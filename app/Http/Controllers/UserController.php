@@ -5,6 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Models\Project;
+use App\Models\Module;
+use App\Models\Division;
+use App\Models\Position;
+use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\Auth;
+use App\Models\Team;
 
 class UserController extends Controller
 {
@@ -103,5 +110,44 @@ class UserController extends Controller
     {
         $user->delete();
         return redirect()->route('users.index')->with('success', 'User berhasil dihapus!');
+    }
+
+    public function summary(Request $request)
+    {
+        $divisionId = $request->input('division_id');
+        $positionId = $request->input('position_id');
+
+        $users = User::query()
+            ->when($divisionId, fn($q) => $q->where('division_id', $divisionId))
+            ->when($positionId, fn($q) => $q->where('position_id', $positionId))
+            ->with(['division', 'position', 'roles', 'teams.applications.modules'])
+            ->get();
+
+        $tasks = \App\Models\Task::all();
+        $projects = Project::all();
+        $modules = Module::all();
+
+        $user = Auth::user();
+        if ($user instanceof User) {
+            $user->load('roles');
+        }
+
+        return Inertia::render('Summaries/Workload', [
+            'header'    => 'Workload Summary',
+            'users'     => $users,
+            'tasks'     => $tasks,
+            'projects'  => $projects,
+            'divisions' => Division::all(),
+            'positions' => Position::all(),
+            'roles'     => Role::all(),
+            'modules'   => $modules,
+            'filters'   => [
+                'division_id' => $divisionId,
+                'position_id' => $positionId,
+            ],
+            'teams' => Team::with('users')->get(),
+            'team_members' => \App\Models\TeamMember::with(['user', 'team'])->get(),
+            'applications' => \App\Models\Application::all(), // <-- Tambahkan baris ini
+        ]);
     }
 }

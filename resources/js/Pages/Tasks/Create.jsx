@@ -1,6 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { useMemo } from 'react';
+import Swal from 'sweetalert2';
 
 export default function Create() {
     const { applications = [], sprints = [], users = [], tasks = [], modules = [] } = usePage().props;
@@ -46,7 +47,54 @@ export default function Create() {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        post(route('tasks.store'));
+
+        if (data.parent_id) {
+            const parentTask = tasks.find(t => String(t.id) === String(data.parent_id));
+            if (parentTask) {
+                // Estimasi jam subtask tidak boleh lebih dari parent
+                const parentEst = parseFloat(parentTask.est_hours) || 0;
+                const subEst = parseFloat(data.est_hours) || 0;
+                if (subEst > parentEst) {
+                    Swal.fire('Validasi', 'Estimasi jam subtask tidak boleh lebih dari parent task.', 'warning');
+                    return;
+                }
+                // Start date subtask tidak boleh sebelum parent
+                if (parentTask.start_date && data.start_date) {
+                    if (new Date(data.start_date) < new Date(parentTask.start_date)) {
+                        Swal.fire('Validasi', `Start date subtask tidak boleh sebelum parent (${parentTask.start_date})`, 'warning');
+                        return;
+                    }
+                }
+                // Due date subtask tidak boleh setelah parent
+                if (parentTask.due_date && data.due_date) {
+                    if (new Date(data.due_date) > new Date(parentTask.due_date)) {
+                        Swal.fire('Validasi', `Due date subtask tidak boleh setelah parent (${parentTask.due_date})`, 'warning');
+                        return;
+                    }
+                }
+            }
+        }
+
+        // Completed date hanya boleh diisi saat status Done
+        if (data.status !== 'Done') {
+            setData('completed_date', '');
+        } else if (!data.completed_date) {
+            // Jika status Done dan completed_date kosong, set ke hari ini
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            setData('completed_date', `${yyyy}-${mm}-${dd}`);
+        }
+
+        // Jika status Done tapi progress belum 100, set otomatis ke 100
+        if (data.status === 'Done' && Number(data.progress) !== 100) {
+            setData('progress', 100);
+        }
+
+        setTimeout(() => {
+            post(route('tasks.store'));
+        }, 0);
     };
 
     return (
@@ -165,9 +213,11 @@ export default function Create() {
                                         onChange={e => setData('parent_id', e.target.value)}
                                     >
                                         <option value="">Tidak ada</option>
-                                        {tasks.map((task) => (
-                                            <option key={task.id} value={task.id}>{task.title}</option>
-                                        ))}
+                                        {tasks
+                                            .filter(task => task.parent_id === null)
+                                            .map(task => (
+                                                <option key={task.id} value={task.id}>{task.title}</option>
+                                            ))}
                                     </select>
                                     {errors.parent_id && <div className="text-red-600 text-sm">{errors.parent_id}</div>}
                                 </div>
@@ -221,6 +271,8 @@ export default function Create() {
                                         className="mt-1 block w-full border-gray-300 rounded"
                                         value={data.completed_date}
                                         onChange={e => setData('completed_date', e.target.value)}
+                                        disabled={data.status !== 'Done'}
+                                        placeholder="Isi jika status Done"
                                     />
                                     {errors.completed_date && <div className="text-red-600 text-sm">{errors.completed_date}</div>}
                                 </div>

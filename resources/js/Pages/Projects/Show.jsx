@@ -91,18 +91,37 @@ export default function Show() {
                                 </table>
                                 <div className="mt-8">
                                     <div className="font-semibold text-blue-900 mb-2">Applications</div>
-                                    <ul className="list-disc pl-5 space-y-2">
+                                    <ul className="list-disc pl-5 space-y-4">
                                         {project.applications && project.applications.length > 0 ? (
-                                            project.applications.map(app => (
-                                                <li key={app.id}>
-                                                    <Link
-                                                        href={route('applications.show', app.id)}
-                                                        className="text-blue-700 hover:underline"
-                                                    >
-                                                        {app.title}
-                                                    </Link>
-                                                </li>
-                                            ))
+                                            project.applications.map(app => {
+                                                // Hitung progress dari task yang Done
+                                                const totalTasks = app.tasks ? app.tasks.length : 0;
+                                                const doneTasks = app.tasks ? app.tasks.filter(t => t.status === 'Done').length : 0;
+                                                const progress = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+
+                                                return (
+                                                    <li key={app.id}>
+                                                        <Link
+                                                            href={route('applications.show', app.id)}
+                                                            className="text-blue-700 hover:underline"
+                                                        >
+                                                            {app.title}
+                                                        </Link>
+                                                        <div className="mt-1">
+                                                            <div className="w-full bg-gray-200 rounded h-3">
+                                                                <div
+                                                                    className="bg-blue-500 h-3 rounded"
+                                                                    style={{
+                                                                        width: `${progress}%`,
+                                                                        transition: 'width 0.5s'
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                            <div className="text-xs text-gray-700 mt-1">{progress}%</div>
+                                                        </div>
+                                                    </li>
+                                                );
+                                            })
                                         ) : (
                                             <li className="text-gray-500">-</li>
                                         )}

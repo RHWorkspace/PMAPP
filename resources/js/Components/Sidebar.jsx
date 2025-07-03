@@ -43,9 +43,9 @@ export default function Sidebar({ user }) {
                         </a>
                     </li>
                     <li>
-                        <a href="#" className="flex items-center gap-3 py-2 px-3 rounded hover:bg-gray-100">
+                        <Link href="/users/summary" className="flex items-center gap-3 py-2 px-3 rounded hover:bg-gray-100">
                             <FaChartBar /> Workload
-                        </a>
+                        </Link>
                     </li>
                     {/* Project Section */}
                     <li

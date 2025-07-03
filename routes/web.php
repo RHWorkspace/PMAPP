@@ -31,6 +31,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // Manage User (CRUD)
+    Route::get('users/summary', [UserController::class, 'summary'])->name('users.summary');
     Route::resource('users', UserController::class);
 
     // Manage Role (CRUD)

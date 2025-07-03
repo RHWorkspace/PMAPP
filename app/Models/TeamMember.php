@@ -17,13 +17,13 @@ class TeamMember extends Model
     // Relasi ke User
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     // Relasi ke Team
     public function team()
     {
-        return $this->belongsTo(Team::class);
+        return $this->belongsTo(Team::class, 'team_id');
     }
 
     // Relasi ke User yang membuat (created_by)

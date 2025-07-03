@@ -62,4 +62,22 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Division::class);
     }
+
+    // Relasi ke Task (task yang di-assign ke user ini)
+    public function tasks()
+    {
+        return $this->hasMany(Task::class, 'assigned_to_user_id');
+    }
+
+    // Relasi ke Project (jika user adalah creator project)
+    public function createdProjects()
+    {
+        return $this->hasMany(Project::class, 'created_by');
+    }
+
+    // Relasi ke Team (jika ada relasi user-team melalui tabel pivot)
+    public function teams()
+    {
+        return $this->belongsToMany(Team::class, 'team_members', 'user_id', 'team_id');
+    }
 }

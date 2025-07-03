@@ -36,4 +36,16 @@ class Application extends Model
     {
         return $this->hasMany(Module::class, 'application_id');
     }
+
+    // Relasi ke Task
+    public function tasks()
+    {
+        return $this->hasMany(Task::class, 'application_id');
+    }
+
+    // Relasi ke Team
+    public function team()
+    {
+        return $this->belongsTo(Team::class, 'team_id');
+    }
 }

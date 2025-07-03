@@ -58,7 +58,10 @@ class ProjectController extends Controller
             'team',
             'creator',
             'applications' => function ($q) {
-                $q->select('id', 'title', 'project_id');
+                $q->select('id', 'title', 'project_id')
+                  ->with(['tasks' => function ($q2) {
+                      $q2->select('id', 'application_id', 'status');
+                  }]);
             }
         ]);
 

@@ -37,7 +37,7 @@ class TaskController extends Controller
         $applications = Application::with('project.team.members.user')->get();
         $sprints = Sprint::select('id', 'title')->get();
         $users = User::select('id', 'name')->get();
-        $tasks = Task::select('id', 'title')->get(); // Untuk parent task
+        $tasks = Task::select('id', 'title', 'parent_id')->get(); // <-- Tambahkan 'parent_id' di sini
         $modules = Module::select('id', 'title', 'application_id')->get();
         return Inertia::render('Tasks/Create', [
             'applications' => $applications,
@@ -72,7 +72,42 @@ class TaskController extends Controller
             'link_issue' => 'nullable|string|max:255',
         ]);
 
+        // Logic: jika status Done, completed_date dan progress otomatis
+        if (
+            isset($validated['status']) &&
+            $validated['status'] === 'Done'
+        ) {
+            // Jika completed_date kosong, isi dengan hari ini
+            if (empty($validated['completed_date'])) {
+                $validated['completed_date'] = now()->toDateString();
+            }
+            // Jika progress belum 100, set ke 100
+            if (empty($validated['progress']) || $validated['progress'] != 100) {
+                $validated['progress'] = 100;
+            }
+        }
+
         Task::create($validated);
+
+        // Tambahkan logika update parent jika subtask baru dibuat
+        if (!empty($validated['parent_id'])) {
+            $parent = Task::find($validated['parent_id']);
+            if ($parent) {
+                $subtasks = Task::where('parent_id', $parent->id)->get();
+                $avgProgress = $subtasks->avg('progress');
+                $parent->progress = $avgProgress;
+
+                if ($subtasks->every(fn($t) => $t->status === 'Done')) {
+                    $parent->status = 'Done';
+                } elseif ($subtasks->contains(fn($t) => $t->status === 'In Progress')) {
+                    $parent->status = 'In Progress';
+                } else {
+                    $parent->status = 'Todo';
+                }
+
+                $parent->save();
+            }
+        }
 
         return redirect()->route('tasks.index')->with('success', 'Task berhasil ditambahkan!');
     }
@@ -92,7 +127,7 @@ class TaskController extends Controller
         $applications = Application::select('id', 'title')->get();
         $sprints = Sprint::select('id', 'title')->get();
         $users = User::select('id', 'name')->get();
-        $tasks = Task::where('id', '!=', $task->id)->select('id', 'title')->get(); // Hindari parent ke diri sendiri
+        $tasks = Task::select('id', 'title', 'parent_id', 'est_hours', 'start_date', 'due_date')->get(); // Ambil semua, termasuk subtasks
         $modules = Module::select('id', 'title', 'application_id')->get();
         return Inertia::render('Tasks/Edit', [
             'task' => $task->load(['application', 'sprint', 'assignedTo', 'parent', 'module']),
@@ -128,7 +163,48 @@ class TaskController extends Controller
             'link_issue' => 'nullable|string|max:255',
         ]);
 
+        // Logic: jika status Done, completed_date dan progress otomatis
+        if (
+            isset($validated['status']) &&
+            $validated['status'] === 'Done'
+        ) {
+            // Jika completed_date kosong, isi dengan hari ini
+            if (empty($validated['completed_date'])) {
+                $validated['completed_date'] = now()->toDateString();
+            }
+            // Jika progress belum 100, set ke 100
+            if (empty($validated['progress']) || $validated['progress'] != 100) {
+                $validated['progress'] = 100;
+            }
+        }
+
         $task->update($validated);
+
+        // Jika task ini adalah subtask (punya parent)
+        if ($task->parent_id) {
+            $parent = Task::find($task->parent_id);
+            if ($parent) {
+                // Ambil semua subtask parent
+                $subtasks = Task::where('parent_id', $parent->id)->get();
+
+                // Hitung progress rata-rata
+                $avgProgress = $subtasks->avg('progress');
+
+                // Update progress parent
+                $parent->progress = $avgProgress;
+
+                // Update status parent
+                if ($subtasks->every(fn($t) => $t->status === 'Done')) {
+                    $parent->status = 'Done';
+                } elseif ($subtasks->contains(fn($t) => $t->status === 'In Progress')) {
+                    $parent->status = 'In Progress';
+                } else {
+                    $parent->status = 'Todo';
+                }
+
+                $parent->save();
+            }
+        }
 
         return redirect()->route('tasks.index')->with('success', 'Task berhasil diupdate!');
     }
