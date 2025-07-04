@@ -54,7 +54,7 @@ class User extends Authenticatable
     // Relasi ke Position
     public function position()
     {
-        return $this->belongsTo(Position::class);
+        return $this->belongsTo(Position::class, 'position_id');
     }
 
     // Relasi ke Division

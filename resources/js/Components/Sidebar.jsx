@@ -27,7 +27,7 @@ export default function Sidebar({ user }) {
     return (
         <aside className="flex flex-col h-screen w-64 bg-white border-r shadow-sm sticky top-0 left-0 z-30">
             <div className="flex items-center h-16 px-6 font-bold text-xl text-blue-700">
-                App PM
+                HD
             </div>
             <nav className="flex-1 px-4 py-2 overflow-y-auto">
                 <ul className="space-y-2 text-gray-700 text-sm">
@@ -38,9 +38,9 @@ export default function Sidebar({ user }) {
                     </li>
                     <li className="mt-4 mb-1 text-xs font-semibold text-gray-400 uppercase">Summary</li>
                     <li>
-                        <a href="#" className="flex items-center gap-3 py-2 px-3 rounded hover:bg-gray-100">
+                        <Link href="/projects/summary" className="flex items-center gap-3 py-2 px-3 rounded hover:bg-gray-100">
                             <FaChartBar /> Summary Project
-                        </a>
+                        </Link>
                     </li>
                     <li>
                         <Link href="/users/summary" className="flex items-center gap-3 py-2 px-3 rounded hover:bg-gray-100">

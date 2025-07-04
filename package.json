@@ -24,6 +24,8 @@
     },
     "dependencies": {
         "react-icons": "^5.5.0",
-        "sweetalert2": "^11.22.2"
+        "react-organizational-chart": "^2.2.1",
+        "sweetalert2": "^11.22.2",
+        "xlsx": "^0.18.5"
     }
 }

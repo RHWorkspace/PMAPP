@@ -5,6 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Project;
 use App\Models\Division;
 use App\Models\Team;
+use App\Models\User;
+use App\Models\Task;
+use App\Models\Module;
+use Spatie\Permission\Models\Role;
+use App\Models\Position;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -13,7 +18,7 @@ class ProjectController extends Controller
     // Tampilkan daftar project
     public function index()
     {
-        $projects = Project::with('division', 'team')->get();
+        $projects = Project::with('applications')->get();
         return Inertia::render('Projects/Index', [
             'projects' => $projects,
         ]);
@@ -106,5 +111,39 @@ class ProjectController extends Controller
     {
         $project->delete();
         return redirect()->route('projects.index')->with('success', 'Project berhasil dihapus!');
+    }
+
+    public function summary(Request $request)
+    {
+        $divisionId = $request->input('division_id');
+        $positionId = $request->input('position_id');
+
+        $users = User::query()
+            ->when($divisionId, fn($q) => $q->where('division_id', $divisionId))
+            ->when($positionId, fn($q) => $q->where('position_id', $positionId))
+            ->with(['division', 'position', 'roles', 'teams.applications.modules'])
+            ->get();
+
+        $tasks = Task::all();
+        $projects = Project::all();
+        $modules = Module::all();
+
+        return Inertia::render('Summaries/ProjectSummary', [
+            'header'    => 'Project Summary',
+            'users'     => $users,
+            'tasks'     => $tasks,
+            'projects'  => $projects,
+            'divisions' => Division::all(),
+            'positions' => Position::all(),
+            'roles'     => Role::all(),
+            'modules'   => $modules,
+            'filters'   => [
+                'division_id' => $divisionId,
+                'position_id' => $positionId,
+            ],
+            'teams' => Team::with(['members.user.position'])->get(),
+            'team_members' => \App\Models\TeamMember::with(['user.position', 'team'])->get(),
+            'applications' => \App\Models\Application::all(),
+        ]);
     }
 }

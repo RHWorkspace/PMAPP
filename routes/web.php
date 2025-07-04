@@ -34,6 +34,9 @@ Route::middleware('auth')->group(function () {
     Route::get('users/summary', [UserController::class, 'summary'])->name('users.summary');
     Route::resource('users', UserController::class);
 
+    // Project Summary
+    Route::get('projects/summary', [ProjectController::class, 'summary'])->name('projects.summary');
+
     // Manage Role (CRUD)
     Route::resource('roles', RoleController::class);
 

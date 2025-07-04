@@ -168,12 +168,13 @@ export default function UserCard({
   }).length;
 
   // --- Perhitungan utama ---
-  const workingHours = getWorkingHoursProportionalThisWeek(effectiveUserTasks);
+  const workingHours = getWorkingHoursProportionalThisWeek(
+    effectiveUserTasks.filter(t => t.status !== "Todo")
+  );
 
   // Done dan In Progress
   const doneTasks = effectiveUserTasks.filter(t => t.status === "Done");
   const inProgressTasks = effectiveUserTasks.filter(t => t.status === "In Progress");
-
   const doneHours = getWorkingHoursProportionalThisWeek(doneTasks);
   const inProgressHours = getWorkingHoursProportionalThisWeek(inProgressTasks);
 
@@ -235,6 +236,10 @@ export default function UserCard({
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     });
+
+  const userTasksFiltered = localStatus
+    ? effectiveUserTasks.filter(t => t.status === localStatus)
+    : effectiveUserTasks;
 
   return (
     <div

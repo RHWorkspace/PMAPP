@@ -1,6 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 
 export default function Create() {
@@ -27,23 +27,33 @@ export default function Create() {
         link_issue: '',
     });
 
+    // State untuk user yang ditampilkan di select
+    const [showedUsers, setShowedUsers] = useState(users);
+
     // Filter module sesuai aplikasi yang dipilih
     const filteredModules = useMemo(() => {
         if (!data.application_id) return [];
         return modules.filter(mod => String(mod.application_id) === String(data.application_id));
     }, [data.application_id, modules]);
 
-    // Filter user sesuai team dari aplikasi yang dipilih
-    const filteredUsers = useMemo(() => {
-        if (!data.application_id) return [];
-        // Cari aplikasi yang dipilih
-        const selectedApp = applications.find(app => String(app.id) === String(data.application_id));
-        if (!selectedApp || !selectedApp.project || !selectedApp.project.team || !selectedApp.project.team.members) return [];
-        // Ambil anggota team dari project aplikasi
-        return selectedApp.project.team.members
-            .filter(member => member.user) // pastikan ada user
-            .map(member => member.user);
-    }, [data.application_id, applications]);
+    // Update showedUsers setiap kali application_id berubah
+    useEffect(() => {
+        if (!data.application_id) {
+            setShowedUsers(users);
+        } else {
+            // Cari aplikasi yang dipilih
+            const selectedApp = applications.find(app => String(app.id) === String(data.application_id));
+            if (!selectedApp || !selectedApp.project || !selectedApp.project.team || !selectedApp.project.team.members) {
+                setShowedUsers([]);
+            } else {
+                setShowedUsers(
+                    selectedApp.project.team.members
+                        .filter(member => member.user)
+                        .map(member => member.user)
+                );
+            }
+        }
+    }, [data.application_id, applications, users]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -196,10 +206,9 @@ export default function Create() {
                                         className="mt-1 block w-full border-gray-300 rounded"
                                         value={data.assigned_to_user_id}
                                         onChange={e => setData('assigned_to_user_id', e.target.value)}
-                                        disabled={!data.application_id}
                                     >
                                         <option value="">Pilih User</option>
-                                        {filteredUsers.map((user) => (
+                                        {showedUsers.map((user) => (
                                             <option key={user.id} value={user.id}>{user.name}</option>
                                         ))}
                                     </select>

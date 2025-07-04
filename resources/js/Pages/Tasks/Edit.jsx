@@ -29,6 +29,7 @@ export default function Edit() {
     const isParent = !data.parent_id;
     const isSubtask = !!data.parent_id;
     const parentTask = isSubtask ? tasks.find(t => String(t.id) === String(data.parent_id)) : null;
+    const hasSubtask = isParent && tasks.some(t => String(t.parent_id) === String(task.id));
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -118,7 +119,7 @@ export default function Edit() {
                                             className="mt-1 block w-full border-gray-300 rounded"
                                             value={data.status}
                                             onChange={e => setData('status', e.target.value)}
-                                            disabled={isParent}
+                                            disabled={hasSubtask}
                                         >
                                             <option value="Todo">Todo</option>
                                             <option value="In Progress">In Progress</option>
@@ -126,8 +127,8 @@ export default function Edit() {
                                             <option value="Done">Done</option>
                                             <option value="Canceled">Canceled</option>
                                         </select>
-                                        {isParent && (
-                                            <div className="text-xs text-gray-500">Status parent task tidak bisa diubah manual.</div>
+                                        {hasSubtask && (
+                                            <div className="text-xs text-gray-500">Status parent task dengan subtask tidak bisa diubah manual.</div>
                                         )}
                                         {errors.status && <div className="text-red-600 text-sm">{errors.status}</div>}
                                     </div>
@@ -232,10 +233,10 @@ export default function Edit() {
                                             className="mt-1 block w-full border-gray-300 rounded"
                                             value={data.progress}
                                             onChange={e => setData('progress', e.target.value)}
-                                            disabled={isParent}
+                                            disabled={hasSubtask}
                                         />
-                                        {isParent && (
-                                            <div className="text-xs text-gray-500">Progress parent task tidak bisa diubah manual.</div>
+                                        {hasSubtask && (
+                                            <div className="text-xs text-gray-500">Progress parent task dengan subtask tidak bisa diubah manual.</div>
                                         )}
                                         {errors.progress && <div className="text-red-600 text-sm">{errors.progress}</div>}
                                     </div>

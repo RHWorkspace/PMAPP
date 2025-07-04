@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Head, Link, usePage, router } from '@inertiajs/react';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout'; // Pastikan path sesuai struktur Anda
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
 export default function Index() {
     const { team, users, flash } = usePage().props;
@@ -9,6 +9,15 @@ export default function Index() {
         role: 'Member',
         status: 'Dedicated',
     });
+
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 10;
+
+    // Pagination logic
+    const members = team.members || [];
+    const totalPages = Math.ceil(members.length / pageSize);
+    const paginatedMembers = members.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
     const handleChange = (e) => {
         setForm({ ...form, [e.target.name]: e.target.value });
@@ -25,18 +34,21 @@ export default function Index() {
         }
     };
 
+    // Reset ke halaman 1 jika data berubah (opsional)
+    // useEffect(() => { setCurrentPage(1); }, [team.members]);
+
     return (
         <AuthenticatedLayout
             header={<h2 className="text-xl font-semibold leading-tight text-gray-800">Anggota Tim: {team.name || team.title}</h2>}
         >
             <Head title={`Anggota Tim ${team.name}`} />
-            <div className="py-10 w-full min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
-                <div className="max-w-5xl mx-auto bg-white shadow-lg rounded-xl p-10 border border-blue-200">
+            <div className="py-6 w-full min-h-screen bg-gray-50">
+                <div className="max-w-6xl mx-auto">
                     {/* Tombol kembali */}
-                    <div className="mb-6">
+                    <div className="mb-6 flex justify-start">
                         <Link
                             href={route('teams.index')}
-                            className="inline-block px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 transition"
+                            className="inline-block px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition"
                         >
                             &larr; Kembali ke Teams
                         </Link>
@@ -46,7 +58,7 @@ export default function Index() {
                     </h2>
 
                     {/* Form tambah anggota */}
-                    <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+                    <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 w-full">
                         <div>
                             <label className="block font-semibold mb-2 text-gray-700">User</label>
                             <select
@@ -99,45 +111,45 @@ export default function Index() {
 
                     {/* Tabel anggota */}
                     <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
+                        <table className="min-w-full divide-y divide-gray-200 text-sm bg-white rounded-xl shadow">
                             <thead>
-                                <tr className="bg-blue-200">
-                                    <th className="px-4 py-2 text-left">#</th>
-                                    <th className="px-4 py-2 text-left">Nama</th>
-                                    <th className="px-4 py-2 text-left">Role</th>
-                                    <th className="px-4 py-2 text-left">Status</th>
-                                    <th className="px-4 py-2 text-left">Aksi</th>
+                                <tr className="bg-blue-100">
+                                    <th className="px-3 py-2 text-left font-semibold text-gray-700">#</th>
+                                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Nama</th>
+                                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Role</th>
+                                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Status</th>
+                                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {team.members && team.members.length === 0 && (
+                                {paginatedMembers.length === 0 && (
                                     <tr>
-                                        <td colSpan={5} className="text-center py-4">Belum ada anggota.</td>
+                                        <td colSpan={5} className="text-center py-4 text-gray-400">Belum ada anggota.</td>
                                     </tr>
                                 )}
-                                {team.members && team.members.map((member, idx) => (
+                                {paginatedMembers.map((member, idx) => (
                                     <tr
                                         key={member.id}
-                                        className={`border-b ${idx % 2 === 0 ? 'bg-blue-50' : 'bg-white'} hover:bg-blue-100 transition`}
+                                        className={idx % 2 === 0 ? 'bg-blue-50' : 'bg-white'}
                                     >
-                                        <td className="px-4 py-2">{idx + 1}</td>
-                                        <td className="px-4 py-2">{member.user ? member.user.name : '-'}</td>
-                                        <td className="px-4 py-2">
+                                        <td className="px-3 py-2">{(currentPage - 1) * pageSize + idx + 1}</td>
+                                        <td className="px-3 py-2">{member.user ? member.user.name : '-'}</td>
+                                        <td className="px-3 py-2">
                                             <span className={`px-2 py-1 rounded text-xs font-semibold
-                                                ${member.role === 'Admin' ? 'bg-green-200 text-green-800'
-                                                : member.role === 'Member' ? 'bg-blue-200 text-blue-800'
-                                                : 'bg-gray-200 text-gray-800'}`}>
+                                                ${member.role === 'Admin' ? 'bg-green-100 text-green-800'
+                                                : member.role === 'Member' ? 'bg-blue-100 text-blue-800'
+                                                : 'bg-gray-100 text-gray-800'}`}>
                                                 {member.role}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-2">
+                                        <td className="px-3 py-2">
                                             <span className={`px-2 py-1 rounded text-xs font-semibold
-                                                ${member.status === 'Dedicated' ? 'bg-blue-200 text-blue-800'
-                                                : 'bg-yellow-200 text-yellow-800'}`}>
+                                                ${member.status === 'Dedicated' ? 'bg-blue-100 text-blue-800'
+                                                : 'bg-yellow-100 text-yellow-800'}`}>
                                                 {member.status}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-2">
+                                        <td className="px-3 py-2">
                                             <button
                                                 onClick={() => handleDelete(member.id)}
                                                 className="text-red-600 hover:underline"
@@ -150,6 +162,28 @@ export default function Index() {
                             </tbody>
                         </table>
                     </div>
+                    {/* Pagination */}
+                    {totalPages > 1 && (
+                        <div className="flex justify-center items-center gap-2 mt-4">
+                            <button
+                                className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                            >
+                                Prev
+                            </button>
+                            <span className="font-semibold">
+                                Page {currentPage} of {totalPages}
+                            </span>
+                            <button
+                                className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                            >
+                                Next
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </AuthenticatedLayout>

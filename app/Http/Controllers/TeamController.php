@@ -13,8 +13,10 @@ class TeamController extends Controller
     public function index()
     {
         $teams = Team::with('division')->get();
+        $divisions = Division::select('id', 'title')->get(); // Tambahkan baris ini
         return Inertia::render('Teams/Index', [
             'teams' => $teams,
+            'divisions' => $divisions, // Tambahkan baris ini
         ]);
     }
 

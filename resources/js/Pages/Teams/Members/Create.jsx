@@ -19,9 +19,9 @@ export default function Create() {
     };
 
     return (
-        <div className="py-10 w-full min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
+        <div className="py-10 w-full min-h-screen">
             <Head title={`Tambah Anggota Tim ${team.name}`} />
-            <div className="max-w-2xl mx-auto bg-white shadow-lg rounded-xl p-10 border border-blue-200">
+            <div className="max-w-2xl mx-auto rounded-xl p-0">
                 <h2 className="text-3xl font-bold mb-8 text-blue-700 text-center">
                     Tambah Anggota Tim: <span className="text-blue-900">{team.name}</span>
                 </h2>

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import UserCard from "../../Components/UserCard";
+import { Tree, TreeNode } from 'react-organizational-chart';
 
 const allStatusOptions = [
   "Todo",
@@ -87,96 +88,85 @@ export default function UserSummary({
     by_team[String(team.id)] = Array.isArray(team.users) ? team.users.length : 0;
   });
   
-  // Tree Divisi → Team
-  function renderDivisionTeamTree(
-    divisions,
-    teams,
-    selectedDivision,
-    setSelectedDivision,
-    selectedTeam,
-    setSelectedTeam,
-    parentId = null
-  ) {
-    const children = divisions.filter(div => div.parent_id === parentId);
-    if (!children.length) return null;
+  // Komponen node custom agar mirip tampilan lama
+  function OrgNode({ label, count, type, selected, onClick }) {
+    return (
+      <div
+        className={`org-tree-node ${type} flex items-center gap-2 justify-center mx-auto px-4 py-2 rounded-lg border shadow-sm cursor-pointer transition
+          ${selected ? (type === "division" ? "ring-2 ring-purple-200" : "ring-2 ring-sky-200") : ""}
+        `}
+        onClick={onClick}
+        style={{
+          minWidth: 120,
+          maxWidth: 220,
+          fontSize: 15,
+          userSelect: "none",
+          outline: "none",
+        }}
+      >
+        <span className="inline-block bg-purple-200 text-purple-800 rounded px-2 py-0.5 text-xs font-bold min-w-[28px] text-center">
+          {count}
+        </span>
+        <span className="truncate flex-1">{label}</span>
+        {selected && (
+          <span className="ml-1 text-xs text-purple-700 font-semibold">●</span>
+        )}
+      </div>
+    );
+  }
+
+  // Fungsi rekursif untuk membangun tree org chart
+  function renderOrgChartTree(parentId) {
+    const childrenDivs = divisions.filter(div => String(div.parent_id) === String(parentId));
 
     return (
-      <ul className="org-tree-ul">
-        {children.map(div => (
-          <li key={div.id} className="org-tree-li">
-            <div
-              className={`org-tree-node flex items-center gap-2 justify-center mx-auto px-4 py-2 rounded-lg border shadow-sm cursor-pointer transition
-                ${String(selectedDivision) === String(div.id)
-                  ? "border-purple-600 bg-purple-100 ring-2 ring-purple-200 font-semibold"
-                  : "border-gray-200 bg-white hover:bg-purple-50"}
-              `}
-              onClick={() => {
-                setSelectedDivision(String(div.id));
-                setSelectedTeam(""); // reset team jika pilih divisi
-              }}
-              title={`Tampilkan team divisi ${div.title || div.name || div.id}`}
-              style={{
-                minWidth: 120,
-                maxWidth: 220,
-                fontSize: 15,
-                userSelect: "none",
-                outline: "none",
-              }}
-            >
-              <span className="inline-block bg-purple-200 text-purple-800 rounded px-2 py-0.5 text-xs font-bold min-w-[28px] text-center">
-                {by_division[String(div.id)] || 0}
-              </span>
-              <span className="truncate flex-1">{div.title || div.name || `Division ${div.id}`}</span>
-              {String(selectedDivision) === String(div.id) && (
-                <span className="ml-1 text-xs text-purple-700 font-semibold">●</span>
-              )}
-            </div>
-            {/* Garis ke bawah */}
-            {(divisions.some(d => d.parent_id === div.id) || teams.some(t => String(t.division_id) === String(div.id))) && (
-              <div className="org-tree-vert-line" />
-            )}
-            {/* Render children divisi */}
-            {renderDivisionTeamTree(divisions, teams, selectedDivision, setSelectedDivision, selectedTeam, setSelectedTeam, div.id)}
-            {/* Render teams di bawah divisi, vertikal */}
-            {teams.filter(t => String(t.division_id) === String(div.id)).length > 0 && (
-              <ul className="org-team-list">
-                {teams.filter(t => String(t.division_id) === String(div.id)).map(team => (
-                  <li key={team.id} className="org-team-li">
-                    <div
-                      className={`org-tree-node flex items-center gap-2 justify-center mx-auto px-4 py-2 rounded-lg border shadow-sm cursor-pointer transition
-                        ${String(selectedTeam) === String(team.id)
-                          ? "border-purple-600 bg-purple-100 ring-2 ring-purple-200 font-semibold"
-                          : "border-gray-200 bg-white hover:bg-purple-50"}
-                      `}
-                      onClick={e => {
-                        e.stopPropagation();
-                        setSelectedTeam(String(team.id));
-                        setSelectedDivision(String(div.id));
-                      }}
-                      title={`Tampilkan user team ${team.title || team.name || team.id}`}
-                      style={{
-                        minWidth: 120,
-                        maxWidth: 220,
-                        fontSize: 15,
-                        userSelect: "none",
-                        outline: "none",
-                      }}
-                    >
-                      <span className="inline-block bg-purple-200 text-purple-800 rounded px-2 py-0.5 text-xs font-bold min-w-[28px] text-center">
-                        {by_team[String(team.id)] || 0}
-                      </span>
-                      <span className="truncate flex-1">{team.title || team.name || `Team ${team.id}`}</span>
-                      {String(selectedTeam) === String(team.id) && (
-                        <span className="ml-1 text-xs text-purple-700 font-semibold">●</span>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </li>
+      <>
+        {childrenDivs.map(div => (
+          <TreeNode
+            key={div.id}
+            label={
+              <OrgNode
+                label={div.title || div.name || `Division ${div.id}`}
+                count={by_division[String(div.id)] || 0}
+                type="division"
+                selected={String(selectedDivision) === String(div.id)}
+                onClick={() => {
+                  setSelectedDivision(String(div.id));
+                  setSelectedTeam("");
+                }}
+              />
+            }
+          >
+            {/* Rekursif ke child division */}
+            {renderOrgChartTree(div.id)}
+            {/* Hanya render teams jika division ini TIDAK punya child division */}
+            {divisions.some(d => String(d.parent_id) === String(div.id))
+              ? null
+              : teams
+                  .filter(t => String(t.division_id) === String(div.id))
+                  .map(team => (
+                    <TreeNode
+                      key={`team-${team.id}`}
+                      label={
+                        <OrgNode
+                          label={team.title || team.name || `Team ${team.id}`}
+                          count={by_team[String(team.id)] || 0}
+                          type="team"
+                          selected={String(selectedTeam) === String(team.id)}
+                          onClick={e => {
+                            e.stopPropagation();
+                            setSelectedTeam(String(team.id));
+                            setSelectedDivision(String(div.id));
+                          }}
+                        />
+                      }
+                    />
+                  ))}
+          </TreeNode>
         ))}
-      </ul>
+        {/* Jika tidak ada child division, render teams langsung di bawah parentId */}
+        
+      </>
     );
   }
 
@@ -310,9 +300,17 @@ export default function UserSummary({
   const statusStat = getStatusStatistic(effectiveTasks);
 
   const resourceWorkload = filteredUsers.map(u => {
-    const userTasks = effectiveFilteredTasks.filter(
+    // Filtering sesuai filter global (status, project, bulan, minggu, dsb)
+    let userTasks = effectiveFilteredTasks.filter(
       t => String(t.assigned_to_user_id) === String(u.id)
     );
+
+    // Default: hanya hitung task yang statusnya "In Progress"
+    // Busy berarti sedang ada task in progress pada user tsb
+    if (!filterStatus) {
+      userTasks = userTasks.filter(t => t.status === "In Progress");
+    }
+
     const qty = userTasks.length;
     const status = qty > 0 ? "Busy" : "Idle";
     return {
@@ -326,19 +324,33 @@ export default function UserSummary({
     };
   });
 
-  console.log("filteredProjects", filteredProjects);
-  console.log("filteredApplicationIds", filteredApplicationIds);
-  console.log("filteredTasks", filteredTasks);
+  console.log("Resource effectiveTasks:", filteredTasks);
+
+  const rootDivision = divisions.find(div => div.parent_id === null);
 
   return (
     <AuthenticatedLayout header={<h2 className="text-2xl font-bold mb-6">{header}</h2>}>
-      <div className="w-full px-2 md:px-8 py-8 bg-gray-50 min-h-screen">
+      <div className="px-2 md:px-8 py-8 bg-gray-50 min-h-screen">
         {/* Tree Divisi & Team */}
         <div className="mb-10 flex flex-col items-center">
-          <div className="w-full flex justify-center">
-            <div className="relative">
-              {renderDivisionTeamTree(divisions, teams, selectedDivision, setSelectedDivision, selectedTeam, setSelectedTeam)}
-            </div>
+          <div className="relative inline-block">
+            <Tree
+              label={
+                <OrgNode
+                  label={rootDivision?.title || rootDivision?.name || "Root"}
+                  count={by_division[String(rootDivision?.id)] || users.length}
+                  type="division"
+                  selected={!selectedDivision}
+                  onClick={() => {
+                    setSelectedDivision("");
+                    setSelectedTeam("");
+                  }}
+                />
+              }
+            >
+              {/* Render hanya anak-anak rootDivision */}
+              {renderOrgChartTree(rootDivision?.id)}
+            </Tree>
           </div>
         </div>
 
@@ -552,71 +564,6 @@ export default function UserSummary({
           ))}
         </div>
       </div>
-      
-      {/* CSS khusus tree */}
-      <style jsx>{`
-        .org-tree-ul {
-          display: flex;
-          justify-content: center;
-          padding-left: 0;
-          list-style: none;
-          position: relative;
-          margin-bottom: 30px;
-        }
-        .org-tree-li {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          position: relative;
-          padding: 0 18px;
-        }
-        .org-tree-node {
-          z-index: 2;
-          margin-bottom: 0;
-        }
-        .org-tree-vert-line {
-          width: 2px;
-          height: 24px;
-          background: #a78bfa;
-          margin: 0 auto;
-          z-index: 1;
-        }
-        .org-team-list {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          margin-top: 12px;
-          gap: 8px;
-          padding-left: 0;
-          list-style: none;
-        }
-        .org-team-li {
-          width: 100%;
-          display: flex;
-          justify-content: center;
-        }
-        .org-team-list > .org-team-li:before {
-          display: none !important;
-        }
-        .org-tree-ul > .org-tree-li:not(:only-child)::before {
-          content: '';
-          position: absolute;
-          top: 22px;
-          left: 0;
-          right: 0;
-          height: 2px;
-          background: #a78bfa;
-          z-index: 0;
-        }
-        .org-tree-ul > .org-tree-li:first-child::before,
-        .org-tree-ul > .org-tree-li:only-child::before {
-          display: none;
-        }
-        .org-tree-li > .org-tree-ul {
-          margin-top: 24px;
-        }
-        .min-w-[220px] { min-width: 220px; }
-      `}</style>
     </AuthenticatedLayout>
   );
 }

@@ -1,10 +1,47 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, usePage, router } from '@inertiajs/react';
 import Swal from 'sweetalert2';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function Index() {
-    const { users, flash } = usePage().props;
+    const { users: allUsers, flash } = usePage().props;
+
+    // State untuk filter dan pagination
+    const [filterName, setFilterName] = useState('');
+    const [filterEmail, setFilterEmail] = useState('');
+    const [filterStatus, setFilterStatus] = useState('');
+    const [filterPosition, setFilterPosition] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 10;
+
+    // Ambil semua posisi unik dari data user
+    const positionOptions = Array.from(
+        new Set(
+            allUsers
+                .map(u => typeof u.position === 'object' ? u.position?.description : u.position)
+                .filter(Boolean)
+        )
+    );
+
+    // Filtering
+    const filteredUsers = allUsers.filter(user =>
+        (filterName === '' || user.name.toLowerCase().includes(filterName.toLowerCase())) &&
+        (filterEmail === '' || user.email.toLowerCase().includes(filterEmail.toLowerCase())) &&
+        (filterStatus === '' || (user.status || '').toLowerCase() === filterStatus.toLowerCase()) &&
+        (filterPosition === '' ||
+            ((typeof user.position === 'object'
+                ? (user.position?.description || '')
+                : (user.position || '')
+            ).toLowerCase() === filterPosition.toLowerCase()))
+    );
+
+    // Pagination
+    const totalPages = Math.ceil(filteredUsers.length / pageSize);
+    const paginatedUsers = filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filterName, filterEmail, filterStatus, filterPosition]);
 
     useEffect(() => {
         if (flash && flash.success) {
@@ -62,6 +99,42 @@ export default function Index() {
                                     Tambah User
                                 </Link>
                             </div>
+                            {/* Filter Bar */}
+                            <div className="flex flex-wrap gap-2 mb-4">
+                                <input
+                                    type="text"
+                                    placeholder="Cari nama..."
+                                    className="border rounded px-2 py-1"
+                                    value={filterName}
+                                    onChange={e => setFilterName(e.target.value)}
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Cari email..."
+                                    className="border rounded px-2 py-1"
+                                    value={filterEmail}
+                                    onChange={e => setFilterEmail(e.target.value)}
+                                />
+                                <select
+                                    className="border rounded px-2 py-1"
+                                    value={filterStatus}
+                                    onChange={e => setFilterStatus(e.target.value)}
+                                >
+                                    <option value="">Semua Status</option>
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
+                                </select>
+                                <select
+                                    className="border rounded px-2 py-1"
+                                    value={filterPosition}
+                                    onChange={e => setFilterPosition(e.target.value)}
+                                >
+                                    <option value="">Semua Position</option>
+                                    {positionOptions.map((pos, idx) => (
+                                        <option key={idx} value={pos}>{pos}</option>
+                                    ))}
+                                </select>
+                            </div>
                             <div className="overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead>
@@ -71,25 +144,24 @@ export default function Index() {
                                             <th className="px-4 py-2 text-left">Email</th>
                                             <th className="px-4 py-2 text-left">NIK</th>
                                             <th className="px-4 py-2 text-left">Status</th>
-                                            <th className="px-4 py-2 text-left">Position</th> {/* Tambah kolom Position */}
+                                            <th className="px-4 py-2 text-left">Position</th>
                                             <th className="px-4 py-2 text-left">Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {users.length === 0 && (
+                                        {paginatedUsers.length === 0 && (
                                             <tr>
                                                 <td colSpan={7} className="text-center py-4">Tidak ada data user.</td>
                                             </tr>
                                         )}
-                                        {users.map((user, idx) => (
+                                        {paginatedUsers.map((user, idx) => (
                                             <tr key={user.id} className="border-b">
-                                                <td className="px-4 py-2">{idx + 1}</td>
+                                                <td className="px-4 py-2">{(currentPage - 1) * pageSize + idx + 1}</td>
                                                 <td className="px-4 py-2">{user.name}</td>
                                                 <td className="px-4 py-2">{user.email}</td>
                                                 <td className="px-4 py-2">{user.nik}</td>
                                                 <td className="px-4 py-2">{user.status}</td>
                                                 <td className="px-4 py-2">
-                                                    {/* Tampilkan nama posisi jika relasi, atau string langsung */}
                                                     {user.position
                                                         ? (typeof user.position === 'object'
                                                             ? (user.position.description || '-')
@@ -121,6 +193,28 @@ export default function Index() {
                                     </tbody>
                                 </table>
                             </div>
+                            {/* Pagination */}
+                            {totalPages > 1 && (
+                                <div className="flex justify-center items-center gap-2 mt-4">
+                                    <button
+                                        className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={currentPage === 1}
+                                    >
+                                        Prev
+                                    </button>
+                                    <span className="font-semibold">
+                                        Page {currentPage} of {totalPages}
+                                    </span>
+                                    <button
+                                        className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

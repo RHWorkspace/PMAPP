@@ -7,6 +7,22 @@ import { FaEdit, FaTrash, FaEye, FaCheck, FaTimes } from 'react-icons/fa';
 export default function Index() {
     const { modules, flash, applications = [], parentModules = [] } = usePage().props;
 
+    // --- Tambahan state filter & pagination ---
+    const [filterTitle, setFilterTitle] = useState('');
+    const [filterApp, setFilterApp] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 10;
+
+    // --- Filtering ---
+    const filteredModules = modules.filter(module =>
+        (filterTitle === '' || module.title.toLowerCase().includes(filterTitle.toLowerCase())) &&
+        (filterApp === '' || String(module.application_id) === filterApp)
+    );
+
+    // --- Pagination ---
+    const totalPages = Math.ceil(filteredModules.length / pageSize);
+    const paginatedModules = filteredModules.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
     const [editId, setEditId] = useState(null);
     const [editTitle, setEditTitle] = useState('');
     const [editParentId, setEditParentId] = useState('');
@@ -76,6 +92,11 @@ export default function Index() {
     const getParentOptions = (currentId) =>
         modules.filter(m => m.id !== currentId);
 
+    // Reset page ke 1 jika filter berubah
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filterTitle, filterApp]);
+
     return (
         <AuthenticatedLayout
             header={<h2 className="text-xl font-semibold leading-tight text-gray-800">Daftar Module</h2>}
@@ -95,6 +116,26 @@ export default function Index() {
                                     Tambah Module
                                 </Link>
                             </div>
+                            {/* Filter Bar */}
+                            <div className="flex flex-wrap gap-2 mb-4">
+                                <input
+                                    type="text"
+                                    placeholder="Cari nama module..."
+                                    className="border rounded px-2 py-1"
+                                    value={filterTitle}
+                                    onChange={e => setFilterTitle(e.target.value)}
+                                />
+                                <select
+                                    className="border rounded px-2 py-1"
+                                    value={filterApp}
+                                    onChange={e => setFilterApp(e.target.value)}
+                                >
+                                    <option value="">Semua Application</option>
+                                    {applications.map(app => (
+                                        <option key={app.id} value={app.id}>{app.title}</option>
+                                    ))}
+                                </select>
+                            </div>
                             <div className="overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead>
@@ -107,14 +148,14 @@ export default function Index() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {modules.length === 0 && (
+                                        {paginatedModules.length === 0 && (
                                             <tr>
                                                 <td colSpan={5} className="text-center py-4">Tidak ada data module.</td>
                                             </tr>
                                         )}
-                                        {modules.map((module, idx) => (
+                                        {paginatedModules.map((module, idx) => (
                                             <tr key={module.id} className="border-b">
-                                                <td className="px-4 py-2">{idx + 1}</td>
+                                                <td className="px-4 py-2">{(currentPage - 1) * pageSize + idx + 1}</td>
                                                 <td className="px-4 py-2">
                                                     {editId === module.id ? (
                                                         <input
@@ -207,6 +248,28 @@ export default function Index() {
                                     </tbody>
                                 </table>
                             </div>
+                            {/* Pagination */}
+                            {totalPages > 1 && (
+                                <div className="flex justify-center items-center gap-2 mt-4">
+                                    <button
+                                        className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={currentPage === 1}
+                                    >
+                                        Prev
+                                    </button>
+                                    <span className="font-semibold">
+                                        Page {currentPage} of {totalPages}
+                                    </span>
+                                    <button
+                                        className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

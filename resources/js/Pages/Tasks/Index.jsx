@@ -3,6 +3,7 @@ import { Head, Link, usePage, router } from '@inertiajs/react';
 import React, { useEffect, useState, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { FaChevronRight, FaChevronDown, FaEdit, FaTrash, FaEye } from 'react-icons/fa';
+import * as XLSX from "xlsx";
 
 export default function Index() {
     const { tasks: allTasks, flash, applications = [], sprints = [], users = [], modules = [] } = usePage().props;
@@ -34,6 +35,10 @@ export default function Index() {
     // Tambahkan di state
     const [subtaskPage, setSubtaskPage] = useState({}); // { [parentId]: pageNumber }
     const subtaskPerPage = 3;
+
+    // Tambahkan state untuk pagination parent task
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 10;
 
     useEffect(() => {
         localStorage.setItem('taskFilter', JSON.stringify(filter));
@@ -110,6 +115,15 @@ export default function Index() {
         );
     });
 
+    // Ambil hanya parent task
+    const parentTasks = filteredTasks.filter(task => !task.parent_id);
+    const totalPages = Math.ceil(parentTasks.length / pageSize);
+    const paginatedParentTasks = parentTasks.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filter]);
+
     // Toggle expand/collapse
     const toggleExpand = (taskId) => {
         setExpandedTaskIds(prev =>
@@ -135,6 +149,72 @@ export default function Index() {
         return Math.ceil(allSubs.length / subtaskPerPage);
     };
 
+    const handleDownloadExcel = () => {
+        const rows = [];
+
+        filteredTasks
+            .filter(task => !task.parent_id) // Parent task
+            .forEach(parent => {
+                // Parent row
+                rows.push({
+                    ID: parent.id,
+                    Jenis: "Task",
+                    Judul: parent.title,
+                    Deskripsi: parent.description || '-',
+                    Status: parent.status,
+                    Prioritas: parent.priority,
+                    Application: parent.application ? parent.application.title : '-',
+                    Module: parent.module ? parent.module.title : '-',
+                    Sprint: parent.sprint ? parent.sprint.title : '-',
+                    Assign: parent.assigned_to ? parent.assigned_to.name : '-',
+                    Progress: parent.progress || 0,
+                    "Est. Jam": parent.est_hours || '-',
+                    "Start": parent.start_date || '-',
+                    "Due": parent.due_date || '-',
+                    "Parent ID": "",
+                    "Parent Judul": "",
+                    "Subtask?": "Tidak",
+                    "Request By": parent.request_by || '-',
+                    "Request At": parent.request_at || '-',
+                    "Request Code": parent.request_code || '-',
+                    "Link Issue": parent.link_issue || '-',
+                });
+
+                // Subtask rows
+                const subtasks = filteredTasks.filter(t => t.parent_id === parent.id);
+                subtasks.forEach(sub => {
+                    rows.push({
+                        ID: sub.id,
+                        Jenis: "Subtask",
+                        Judul: sub.title,
+                        Deskripsi: sub.description || '-',
+                        Status: sub.status,
+                        Prioritas: sub.priority,
+                        Application: sub.application ? sub.application.title : '-',
+                        Module: sub.module ? sub.module.title : '-',
+                        Sprint: sub.sprint ? sub.sprint.title : '-',
+                        Assign: sub.assigned_to ? sub.assigned_to.name : '-',
+                        Progress: sub.progress || 0,
+                        "Est. Jam": sub.est_hours || '-',
+                        "Start": sub.start_date || '-',
+                        "Due": sub.due_date || '-',
+                        "Parent ID": parent.id,
+                        "Parent Judul": parent.title,
+                        "Subtask?": "Ya",
+                        "Request By": sub.request_by || '-',
+                        "Request At": sub.request_at || '-',
+                        "Request Code": sub.request_code || '-',
+                        "Link Issue": sub.link_issue || '-',
+                    });
+                });
+            });
+
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Tasks");
+        XLSX.writeFile(wb, "tasks-detail.xlsx");
+    };
+
     return (
         <AuthenticatedLayout
             header={<h2 className="text-xl font-semibold leading-tight text-gray-800">Daftar Task</h2>}
@@ -147,12 +227,20 @@ export default function Index() {
                         <div className="p-6 text-gray-900">
                             <div className="flex justify-between mb-4">
                                 <h3 className="text-lg font-bold">Tasks</h3>
-                                <Link
-                                    href={route('tasks.create')}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                                >
-                                    Tambah Task
-                                </Link>
+                                <div className="flex gap-2">
+                                    <Link
+                                        href={route('tasks.create')}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                    >
+                                        Tambah Task
+                                    </Link>
+                                    <button
+                                        onClick={handleDownloadExcel}
+                                        className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                                    >
+                                        Export to Excel
+                                    </button>
+                                </div>
                             </div>
                             {/* Filter */}
                             <div className="mb-4 grid grid-cols-1 md:grid-cols-6 gap-2">
@@ -254,14 +342,12 @@ export default function Index() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {filteredTasks.length === 0 && (
+                                        {parentTasks.length === 0 && (
                                             <tr>
                                                 <td colSpan={14} className="text-center py-4">Tidak ada data task.</td>
                                             </tr>
                                         )}
-                                        {filteredTasks
-                                            .filter(task => !task.parent_id) // hanya parent task
-                                            .map((task, idx) => (
+                                        {paginatedParentTasks.map((task, idx) => (
                                             <React.Fragment key={task.id}>
                                                 <tr
                                                     className={`border-b ${idx % 2 === 0 ? 'bg-blue-50' : 'bg-white'} hover:bg-blue-200 transition`}
@@ -283,7 +369,7 @@ export default function Index() {
                                                             </button>
                                                         ) : null}
                                                     </td>
-                                                    <td className="px-4 py-2">{idx + 1}</td>
+                                                    <td className="px-4 py-2">{(currentPage - 1) * pageSize + idx + 1}</td>
                                                     <td className="px-4 py-2">{task.title}</td>
                                                     <td className="px-4 py-2">{task.status}</td>
                                                     <td className="px-4 py-2">{task.priority}</td>
@@ -612,6 +698,28 @@ export default function Index() {
                                     </tbody>
                                 </table>
                             </div>
+                            {/* Pagination for parent tasks */}
+                            {totalPages > 1 && (
+                                <div className="flex justify-center items-center gap-2 mt-4">
+                                    <button
+                                        className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={currentPage === 1}
+                                    >
+                                        Prev
+                                    </button>
+                                    <span className="font-semibold">
+                                        Page {currentPage} of {totalPages}
+                                    </span>
+                                    <button
+                                        className="px-3 py-1 rounded border bg-gray-100 text-gray-700 disabled:opacity-50"
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
