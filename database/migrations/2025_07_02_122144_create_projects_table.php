@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('title');
             $table->text('description')->nullable();
-            $table->enum('status', ['Draft', 'Active', 'Completed', 'Cancelled'])->default('Draft');
+            $table->enum('status', ['Initiating','Planning','Executing','Monitoring & Controlling','Closing'])->default('Initiating');
             $table->unsignedBigInteger('division_id');
             $table->unsignedBigInteger('team_id');
             $table->date('start_date')->nullable();
