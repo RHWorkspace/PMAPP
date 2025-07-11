@@ -90,26 +90,41 @@ export default function UserSummary({
   
   // Komponen node custom agar mirip tampilan lama
   function OrgNode({ label, count, type, selected, onClick }) {
+    const isDivision = type === "division";
     return (
       <div
-        className={`org-tree-node ${type} flex items-center gap-2 justify-center mx-auto px-4 py-2 rounded-lg border shadow-sm cursor-pointer transition
-          ${selected ? (type === "division" ? "ring-2 ring-purple-200" : "ring-2 ring-sky-200") : ""}
+        className={`org-tree-node ${type} flex items-center ${isDivision ? "flex-row" : "flex-col"} gap-0.5 justify-center mx-auto px-1 py-0.5 rounded-lg border shadow-sm cursor-pointer transition
+          ${isDivision
+            ? "bg-purple-100 border-purple-300"
+            : "bg-sky-100 border-sky-300"
+          }
+          ${selected ? (isDivision ? "ring-2 ring-purple-400" : "ring-2 ring-sky-400") : ""}
         `}
         onClick={onClick}
         style={{
-          minWidth: 120,
-          maxWidth: 220,
-          fontSize: 15,
+          minWidth: 40,
+          maxWidth: 120,
+          fontSize: 11,
           userSelect: "none",
           outline: "none",
         }}
       >
-        <span className="inline-block bg-purple-200 text-purple-800 rounded px-2 py-0.5 text-xs font-bold min-w-[28px] text-center">
+        <span className={`inline-block font-bold min-w-[16px] text-center text-[10px]
+          ${isDivision ? "bg-purple-200 text-purple-800" : "bg-sky-200 text-sky-800"}
+          rounded px-1 py-0`}
+        >
           {count}
         </span>
-        <span className="truncate flex-1">{label}</span>
+        {isDivision ? (
+          <span className="truncate flex-1 text-xs">{label}</span>
+        ) : (
+          <span className="truncate flex-1 flex flex-col items-center gap-0">
+            <span role="img" aria-label="team" className="text-base leading-none">👥</span>
+            <span className="text-xs">{label}</span>
+          </span>
+        )}
         {selected && (
-          <span className="ml-1 text-xs text-purple-700 font-semibold">●</span>
+          <span className={`ml-0.5 text-xs font-semibold ${isDivision ? "text-purple-700" : "text-sky-700"}`}>●</span>
         )}
       </div>
     );
@@ -139,29 +154,27 @@ export default function UserSummary({
           >
             {/* Rekursif ke child division */}
             {renderOrgChartTree(div.id)}
-            {/* Hanya render teams jika division ini TIDAK punya child division */}
-            {divisions.some(d => String(d.parent_id) === String(div.id))
-              ? null
-              : teams
-                  .filter(t => String(t.division_id) === String(div.id))
-                  .map(team => (
-                    <TreeNode
-                      key={`team-${team.id}`}
-                      label={
-                        <OrgNode
-                          label={team.title || team.name || `Team ${team.id}`}
-                          count={by_team[String(team.id)] || 0}
-                          type="team"
-                          selected={String(selectedTeam) === String(team.id)}
-                          onClick={e => {
-                            e.stopPropagation();
-                            setSelectedTeam(String(team.id));
-                            setSelectedDivision(String(div.id));
-                          }}
-                        />
-                      }
+            {/* Selalu render teams di bawah divisi */}
+            {teams
+              .filter(t => String(t.division_id) === String(div.id))
+              .map(team => (
+                <TreeNode
+                  key={`team-${team.id}`}
+                  label={
+                    <OrgNode
+                      label={team.title || team.name || `Team ${team.id}`}
+                      count={by_team[String(team.id)] || 0}
+                      type="team"
+                      selected={String(selectedTeam) === String(team.id)}
+                      onClick={e => {
+                        e.stopPropagation();
+                        setSelectedTeam(String(team.id));
+                        setSelectedDivision(String(div.id));
+                      }}
                     />
-                  ))}
+                  }
+                />
+              ))}
           </TreeNode>
         ))}
         {/* Jika tidak ada child division, render teams langsung di bawah parentId */}
@@ -208,7 +221,9 @@ export default function UserSummary({
 
   // Filter projects
   const filteredProjects = selectedTeam
-    ? projects.filter(p => String(p.team_id) === String(selectedTeam))
+    ? projects.filter(p =>
+      applications.some(app => String(app.project_id) === String(p.id) && String(app.team_id) === String(selectedTeam))
+    )
     : (selectedDivision
         ? (() => {
             const allIds = getAllChildDivisionIds(divisions, selectedDivision);
@@ -221,7 +236,10 @@ export default function UserSummary({
 
   // Dapatkan semua application id dari project yang lolos filter
   const filteredApplicationIds = applications
-  .filter(app => filteredProjectIds.includes(String(app.project_id)))
+  .filter(app =>
+    filteredProjectIds.includes(String(app.project_id)) &&
+    (!selectedTeam || String(app.team_id) === String(selectedTeam))
+  )
   .map(app => String(app.id));
 
   // Filter tasks berdasarkan application_id
@@ -258,7 +276,11 @@ export default function UserSummary({
     const date = t.due_date || t.created_at || t.updated_at;
     if (!date) return false;
     const d = new Date(date);
-    const week = Math.ceil((d.getDate() - d.getDay() + 1) / 7);
+    const dayOfMonth = d.getDate(); // <-- Tambahkan baris ini
+    // Minggu ke-n dalam bulan (Senin sebagai awal minggu)
+    const firstDay = new Date(d.getFullYear(), d.getMonth(), 1);
+    let offset = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1; // Senin=0, Minggu=6
+    const week = Math.ceil(dayOfMonth / 7);
     return week === Number(filterWeek);
   });
 
@@ -276,8 +298,13 @@ export default function UserSummary({
   const effectiveFilteredTasks = getEffectiveTasks(filteredTasks);
 
   // Progress project (hitung task berdasarkan aplikasi project tsb)
+  const filteredApplications = selectedTeam
+    ? applications.filter(app => String(app.team_id) === String(selectedTeam))
+    : applications;
+
+  // Progress project (hitung task berdasarkan aplikasi project tsb)
   const projectProgress = filteredProjects.map(p => {
-    const projectApps = applications.filter(app => String(app.project_id) === String(p.id));
+    const projectApps = filteredApplications.filter(app => String(app.project_id) === String(p.id));
     const appIds = projectApps.map(app => String(app.id));
     const projectTasks = effectiveFilteredTasks.filter(
       t => appIds.includes(String(t.application_id))
@@ -417,16 +444,30 @@ export default function UserSummary({
             <div className="font-bold text-lg mb-2">Status Statistic</div>
             <div className="flex justify-between mb-1 text-sm">
               <span>Total Task</span>
-              <span className="font-bold">{effectiveTasks.length}</span>
+              <span className="font-bold">{effectiveFilteredTasks.length}</span>
             </div>
             <table className="w-full text-sm">
               <tbody>
-                {allStatusOptions.map((name) => (
-                  <tr key={name}>
-                    <td className="py-1">{mapStatusLabel(name)}</td>
-                    <td className="py-1 text-right font-semibold">{statusStat[name] || 0}</td>
-                  </tr>
-                ))}
+                {allStatusOptions.map((name) => {
+                  const count = effectiveFilteredTasks.filter(t => {
+                    // Untuk status "Delayed", gunakan logika khusus
+                    if (name === "Delayed") {
+                      const status = (t.status || t.status_name || "").trim();
+                      if (status !== "In Progress") return false;
+                      if (!t.due_date) return false;
+                      const today = new Date();
+                      const due = new Date(t.due_date);
+                      return due < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                    }
+                    return (t.status || t.status_name || "").trim() === name;
+                  }).length;
+                  return (
+                    <tr key={name}>
+                      <td className="py-1">{mapStatusLabel(name)}</td>
+                      <td className="py-1 text-right font-semibold">{count}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -468,7 +509,8 @@ export default function UserSummary({
                 <div className="text-gray-400 text-center py-6">Tidak ada project pada divisi/filternya.</div>
               ) : (
                 projectProgress.map(p => {
-                  const projectApps = applications.filter(app => String(app.project_id) === String(p.id));
+                  // GUNAKAN filteredApplications AGAR HANYA APLIKASI YANG SESUAI TEAM/FILTER YANG MUNCUL
+                  const projectApps = filteredApplications.filter(app => String(app.project_id) === String(p.id));
                   const appIds = projectApps.map(app => String(app.id));
                   const projectTasks = effectiveFilteredTasks.filter(
                     t => appIds.includes(String(t.application_id))
@@ -560,6 +602,7 @@ export default function UserSummary({
               filterMonth={filterMonth}
               filterWeek={filterWeek}
               modules={modules}
+              applications={applications} // <-- tambahkan baris ini
             />
           ))}
         </div>

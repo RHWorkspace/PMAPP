@@ -39,9 +39,9 @@ class Team extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    // Relasi ke Application
+    // Relasi ke Application (SESUAIKAN DI SINI)
     public function applications()
     {
-        return $this->hasMany(Application::class, 'project_id');
+        return $this->hasMany(Application::class, 'team_id');
     }
 }

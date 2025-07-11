@@ -47,6 +47,10 @@ export default function Show() {
                                     <td className="py-2">{application.project ? application.project.title : '-'}</td>
                                 </tr>
                                 <tr>
+                                    <td className="font-semibold py-2">Team</td>
+                                    <td className="py-2">{application.team ? application.team.title : '-'}</td>
+                                </tr>
+                                <tr>
                                     <td className="font-semibold py-2">Status</td>
                                     <td className="py-2">{application.status}</td>
                                 </tr>

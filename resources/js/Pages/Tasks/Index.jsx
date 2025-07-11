@@ -131,6 +131,7 @@ export default function Index() {
                 ? prev.filter(id => id !== taskId)
                 : [...prev, taskId]
         );
+        setSubtaskPage(p => ({ ...p, [taskId]: 1 }));
     };
 
     // Helper: ambil subtask dari allTasks
@@ -214,6 +215,18 @@ export default function Index() {
         XLSX.utils.book_append_sheet(wb, ws, "Tasks");
         XLSX.writeFile(wb, "tasks-detail.xlsx");
     };
+
+    const appMap = React.useMemo(() => {
+        const map = {};
+        applications.forEach(app => { map[String(app.id)] = app; });
+        return map;
+    }, [applications]);
+
+    const moduleMap = React.useMemo(() => {
+        const map = {};
+        modules.forEach(mod => { map[String(mod.id)] = mod; });
+        return map;
+    }, [modules]);
 
     return (
         <AuthenticatedLayout
@@ -320,6 +333,23 @@ export default function Index() {
                                         <option key={user.id} value={user.id}>{user.name}</option>
                                     ))}
                                 </select>
+                                <button
+                                    type="button"
+                                    className="border rounded px-2 py-1 bg-gray-200 hover:bg-gray-300 text-sm md:col-span-1"
+                                    onClick={() => {
+                                        setFilter({
+                                            status: '',
+                                            priority: '',
+                                            application_id: '',
+                                            module_id: '',
+                                            sprint_id: '',
+                                            assignedTo: '',
+                                        });
+                                        setCurrentPage(1);
+                                    }}
+                                >
+                                    Clear Filter
+                                </button>
                             </div>
                             <div className="overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
@@ -373,8 +403,10 @@ export default function Index() {
                                                     <td className="px-4 py-2">{task.title}</td>
                                                     <td className="px-4 py-2">{task.status}</td>
                                                     <td className="px-4 py-2">{task.priority}</td>
-                                                    <td className="px-4 py-2">{task.application ? task.application.title : '-'}</td>
-                                                    <td className="px-4 py-2">{task.module ? task.module.title : '-'}</td>
+                                                    <td className="px-4 py-2">
+                                                        {appMap[String(task.application_id)]?.title || "-"}
+                                                    </td>
+                                                    <td className="px-4 py-2">{moduleMap[String(task.module_id)]?.title || '-'}</td>
                                                     <td className="px-4 py-2">{task.sprint ? task.sprint.title : '-'}</td>
                                                     <td className="px-4 py-2">{task.assigned_to ? task.assigned_to.name : '-'}</td>
                                                     {/* Progress Bar */}
@@ -595,8 +627,10 @@ export default function Index() {
                                                         <td className="px-4 py-2">{sub.title}</td>
                                                         <td className="px-4 py-2">{sub.status}</td>
                                                         <td className="px-4 py-2">{sub.priority}</td>
-                                                        <td className="px-4 py-2">{sub.application ? sub.application.title : '-'}</td>
-                                                        <td className="px-4 py-2">{sub.module ? sub.module.title : '-'}</td>
+                                                        <td className="px-4 py-2">
+                                                            {appMap[String(sub.application_id)]?.title || "-"}
+                                                        </td>
+                                                        <td className="px-4 py-2">{moduleMap[String(sub.module_id)]?.title || '-'}</td>
                                                         <td className="px-4 py-2">{sub.sprint ? sub.sprint.title : '-'}</td>
                                                         <td className="px-4 py-2">{sub.assigned_to ? sub.assigned_to.name : '-'}</td>
                                                         <td className="px-4 py-2 w-52">

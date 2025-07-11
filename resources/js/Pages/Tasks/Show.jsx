@@ -67,11 +67,19 @@ export default function Show() {
                                         </tr>
                                         <tr>
                                             <td className="font-semibold py-2 text-blue-900">Progress</td>
-                                            <td className="py-2">{task.progress}%</td>
+                                            <td className="py-2">{typeof task.progress === "number" ? `${task.progress}%` : '-'}</td>
                                         </tr>
                                         <tr>
                                             <td className="font-semibold py-2 text-blue-900">Estimasi Jam</td>
-                                            <td className="py-2">{task.est_hours || '-'}</td>
+                                            <td className="py-2">{task.est_hours ? `${task.est_hours} jam` : '-'}</td>
+                                        </tr>
+                                        <tr>
+                                            <td className="font-semibold py-2 text-blue-900">Team</td>
+                                            <td className="py-2">
+                                                {task.application && task.application.team
+                                                    ? task.application.team.title
+                                                    : "-"}
+                                            </td>
                                         </tr>
                                     </tbody>
                                 </table>

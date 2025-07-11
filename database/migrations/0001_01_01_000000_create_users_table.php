@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('nik')->unique();
             $table->string('password');
             $table->enum('status', ['Active', 'Inactive'])->default('Active');
-            $table->enum('type', ['Karyawan', 'Magang'])->default('Karyawan');
+            $table->enum('type', ['Karyawan','JagooIT','Kontrak','Freelance','Magang'])->default('Karyawan');
             $table->unsignedBigInteger('position_id')->nullable();
             $table->unsignedBigInteger('division_id')->nullable();
             $table->date('join_date');

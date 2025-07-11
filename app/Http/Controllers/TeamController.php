@@ -50,7 +50,8 @@ class TeamController extends Controller
         $team = Team::with([
             'division',
             'creator',
-            'members.user.position', // tambahkan ini!
+            'members.user.position',
+            'applications', // Tambahkan ini jika ingin tampilkan aplikasi milik team
         ])->findOrFail($id);
 
         return Inertia::render('Teams/Show', [

@@ -4,6 +4,13 @@ import Swal from 'sweetalert2';
 import { useEffect } from 'react';
 import { FaEdit, FaTrash, FaEye } from 'react-icons/fa';
 
+function formatRupiah(angka) {
+    if (angka === undefined || angka === null || angka === '') return '-';
+    const num = typeof angka === 'string' ? parseFloat(angka) : angka;
+    if (isNaN(num)) return '-';
+    return num.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
+}
+
 export default function Index() {
     const { projects, flash } = usePage().props;
 
@@ -69,10 +76,10 @@ export default function Index() {
                                             <th className="px-4 py-2 text-left">#</th>
                                             <th className="px-4 py-2 text-left">Nama</th>
                                             <th className="px-4 py-2 text-left">Divisi</th>
-                                            <th className="px-4 py-2 text-left">Team</th>
                                             <th className="px-4 py-2 text-left">Status</th>
                                             <th className="px-4 py-2 text-left">Start</th>
                                             <th className="px-4 py-2 text-left">Due</th>
+                                            <th className="px-4 py-2 text-left">Nilai</th> {/* Tambahkan ini */}
                                             <th className="px-4 py-2 text-left">Aksi</th>
                                         </tr>
                                     </thead>
@@ -87,10 +94,10 @@ export default function Index() {
                                                 <td className="px-4 py-2">{idx + 1}</td>
                                                 <td className="px-4 py-2">{project.title}</td>
                                                 <td className="px-4 py-2">{project.division ? project.division.title : '-'}</td>
-                                                <td className="px-4 py-2">{project.team ? project.team.title : '-'}</td>
                                                 <td className="px-4 py-2">{project.status}</td>
                                                 <td className="px-4 py-2">{project.start_date}</td>
                                                 <td className="px-4 py-2">{project.due_date || '-'}</td>
+                                                <td className="px-4 py-2">{formatRupiah(project.nilai)}</td>
                                                 <td className="px-4 py-2">
                                                     <div className="flex items-center gap-2">
                                                         <Link

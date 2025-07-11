@@ -96,6 +96,9 @@ export default function Edit() {
                                         onChange={e => setData('type', e.target.value)}
                                     >
                                         <option value="Karyawan">Karyawan</option>
+                                        <option value="JagooIT">JagooIT</option>
+                                        <option value="Kontrak">Kontrak</option>
+                                        <option value="Freelance">Freelance</option>
                                         <option value="Magang">Magang</option>
                                     </select>
                                     {errors.type && <div className="text-red-600 text-sm">{errors.type}</div>}
@@ -109,7 +112,7 @@ export default function Edit() {
                                     >
                                         <option value="">Pilih Position</option>
                                         {positions.map((pos) => (
-                                            <option key={pos.id} value={pos.id}>{pos.title}</option>
+                                            <option key={pos.id} value={pos.id}>{pos.description}</option>
                                         ))}
                                     </select>
                                     {errors.position_id && <div className="text-red-600 text-sm">{errors.position_id}</div>}

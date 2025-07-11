@@ -14,29 +14,24 @@ export default function ProjectCard({
   divisions = [],
   teams = [],
   applications = [],
-  statuses = [],
   modules = [],
   tasks = [],
   team_members = [],
+  filterTeam, // tambahkan ini
 }) {
   const division = divisions.find(d => String(d.id) === String(project.division_id));
   const team = teams.find(t => String(t.id) === String(project.team_id));
-  // Ambil aplikasi yang terkait dengan project ini
-  const projectApps = applications.filter(app => String(app.project_id) === String(project.id));
-
-  // Ambil semua task aplikasi project ini
-  const appTasks = (appId) => tasks.filter(task => String(task.application_id) === String(appId));
-
-  // Status list untuk aplikasi
+  const projectApps = applications.filter(app =>
+    String(app.project_id) === String(project.id) &&
+    (!filterTeam || String(app.team_id) === String(filterTeam))
+  );
   const statusList = ["Todo", "In Progress", "Done", "Pending", "Cancel", "Delayed"];
+  const cardClass = "bg-white rounded-xl shadow p-6 flex flex-col gap-2 border transition hover:shadow-lg";
 
-  // Style card utama
-  const cardClass =
-    "bg-white rounded-xl shadow p-6 flex flex-col gap-2 border transition hover:shadow-lg";
-
-  // Style card aplikasi
-  const appCardClass =
-    "rounded-lg p-4 mb-2";
+  const [showModules, setShowModules] = useState({});
+  const handleToggleModules = (appId) => {
+    setShowModules(prev => ({ ...prev, [appId]: !prev[appId] }));
+  };
 
   return (
     <div className={cardClass}>
@@ -49,9 +44,7 @@ export default function ProjectCard({
           <div className="text-sm text-gray-500 mb-1">
             Divisi: <span className="font-semibold">{division?.title || division?.name || "-"}</span>
           </div>
-          <div className="text-sm text-gray-500 mb-1">
-            Team: <span className="font-semibold">{team?.title || team?.name || "-"}</span>
-          </div>
+          {/* Hapus info team di sini */}
           <div className="text-sm text-gray-500 mb-1">
             <div className="font-semibold mb-1">Applications:</div>
             <span className="ml-1 text-gray-400">Tidak ada aplikasi</span>
@@ -62,17 +55,10 @@ export default function ProjectCard({
         </>
       ) : (
         projectApps.map(app => {
-          const appTaskList = appTasks(app.id);
-          const totalTasks = appTaskList.length;
-          const statusCount = {};
-          statusList.forEach(status => {
-            statusCount[status] = appTaskList.filter(t => t.status === status).length;
-          });
-          const progress = totalTasks > 0 ? Math.round((statusCount["Done"] / totalTasks) * 100) : 0;
-
-          // Ambil anggota dari team_members
+          // Perbaikan: ambil team dari aplikasi
+          const appTeam = teams.find(t => String(t.id) === String(app.team_id));
           const teamMembers = Array.isArray(team_members)
-            ? team_members.filter(m => String(m.team_id) === String(project.team_id))
+            ? team_members.filter(m => String(m.team_id) === String(app.team_id))
             : [];
           const leader = teamMembers.find(
             m => m.role?.toLowerCase() === "admin" && m.user?.position?.title?.toLowerCase() === "pm"
@@ -81,26 +67,39 @@ export default function ProjectCard({
             m => !(m.role?.toLowerCase() === "admin" && m.user?.position?.title?.toLowerCase() === "pm")
           );
 
-          // Ambil modules untuk aplikasi ini
           const appModules = Array.isArray(modules)
             ? modules.filter(mod => String(mod.application_id) === String(app.id))
             : [];
 
-          // Fungsi progress module
           const moduleProgress = (modId) => {
             const modTasks = tasks.filter(t => String(t.module_id) === String(modId));
             const done = modTasks.filter(t => t.status === "Done").length;
             return modTasks.length > 0 ? Math.round((done / modTasks.length) * 100) : 0;
           };
 
-          // Tambahkan state untuk collapse/expand module
-          const [showModules, setShowModules] = useState(false);
+          const appTasks = tasks.filter(t => String(t.application_id) === String(app.id));
+          const totalTasks = appTasks.length;
+          const progress = totalTasks > 0
+            ? Math.round((appTasks.filter(t => t.status === "Done").length / totalTasks) * 100)
+            : 0;
+          const statusCount = {};
+          statusList.forEach(status => {
+            statusCount[status] = appTasks.filter(t => t.status === status).length;
+          });
 
           return (
-            <div key={app.id} className={appCardClass}>
+            <div key={app.id}>
               <div className="font-bold text-lg mb-1">{app.title || app.name}</div>
               <div className="text-sm text-gray-500 mb-1">
                 Status: <span className="font-semibold">{app.status || "-"}</span>
+              </div>
+              <div className="text-sm text-gray-500 mb-1">
+                Team: <span className="font-semibold">{app.team?.title || "-"}</span>
+              </div>
+              <div className="text-sm text-gray-500 mb-1">
+                Start: <span className="font-semibold">{app.start_date ? new Date(app.start_date).toLocaleDateString() : "-"}</span>
+                {" | "}
+                Due: <span className="font-semibold">{app.due_date ? new Date(app.due_date).toLocaleDateString() : "-"}</span>
               </div>
               <div className="text-sm text-gray-500 mb-2">
                 Project: <span className="font-semibold">{project.title || project.name}</span>
@@ -113,7 +112,9 @@ export default function ProjectCard({
                     style={{ width: `${progress}%`, transition: "width 0.3s" }}
                   />
                 </div>
-                <span className="text-xs font-semibold text-gray-700 w-10 text-right">{progress}%</span>
+                <span className="text-xs font-semibold text-gray-700 w-10 text-right">
+                  {progress}%
+                </span>
               </div>
               <div className="flex flex-wrap gap-2 mb-2">
                 <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-semibold">
@@ -133,17 +134,17 @@ export default function ProjectCard({
                 <div className="mt-2 mb-2">
                   <div
                     className="font-semibold text-xs text-gray-600 mb-1 cursor-pointer select-none flex items-center gap-2"
-                    onClick={() => setShowModules(v => !v)}
                   >
                     <span>Modules:</span>
                     <button
                       type="button"
                       className="text-xs px-2 py-0.5 rounded bg-gray-100 border border-gray-300 hover:bg-gray-200"
+                      onClick={() => handleToggleModules(app.id)}
                     >
-                      {showModules ? "Hide" : "Show"}
+                      {showModules[app.id] ? "Hide" : "Show"}
                     </button>
                   </div>
-                  {showModules && (
+                  {showModules[app.id] && (
                     <ul className="space-y-1">
                       {appModules.map(mod => {
                         const prog = moduleProgress(mod.id);

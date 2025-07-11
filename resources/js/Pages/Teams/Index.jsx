@@ -11,6 +11,7 @@ export default function Index() {
     const [editId, setEditId] = useState(null);
     const [editTitle, setEditTitle] = useState('');
     const [editDescription, setEditDescription] = useState('');
+    const [editDivisionId, setEditDivisionId] = useState('');
 
     // Filtering & Pagination state
     const [filterName, setFilterName] = useState('');
@@ -72,24 +73,27 @@ export default function Index() {
         setEditId(team.id);
         setEditTitle(team.title);
         setEditDescription(team.description || '');
+        setEditDivisionId(team.division_id);
     };
 
     const cancelEdit = () => {
         setEditId(null);
         setEditTitle('');
         setEditDescription('');
+        setEditDivisionId('');
     };
 
     const submitEdit = (team) => {
         router.put(route('teams.update', team.id), {
             title: editTitle,
             description: editDescription,
-            division_id: team.division_id,
+            division_id: editDivisionId,
         }, {
             onSuccess: () => {
                 setEditId(null);
                 setEditTitle('');
                 setEditDescription('');
+                setEditDivisionId('');
             }
         });
     };
@@ -157,40 +161,96 @@ export default function Index() {
                                             className={idx % 2 === 0 ? 'bg-blue-50' : 'bg-white'}
                                         >
                                             <td className="px-4 py-2">{(currentPage - 1) * pageSize + idx + 1}</td>
-                                            <td className="px-4 py-2 font-medium text-blue-900">{team.title}</td>
-                                            <td className="px-4 py-2">{team.description || '-'}</td>
-                                            <td className="px-4 py-2">{team.division ? team.division.title : '-'}</td>
-                                            <td className="px-4 py-2 space-x-2">
-                                                <Link
-                                                    href={route('team-members.index', team.id)}
-                                                    className="text-purple-600 hover:underline"
-                                                    title="Kelola Anggota"
-                                                >
-                                                    <FaUsers className="inline mr-1" /> Anggota
-                                                </Link>
-                                                <Link
-                                                    href={route('teams.show', team.id)}
-                                                    className="text-green-600 hover:underline"
-                                                    title="Detail"
-                                                >
-                                                    Detail
-                                                </Link>
-                                                <button
-                                                    type="button"
-                                                    className="text-blue-600 hover:underline"
-                                                    onClick={() => startEdit(team)}
-                                                    title="Edit"
-                                                >
-                                                    Edit
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(team.id)}
-                                                    className="text-red-600 hover:underline"
-                                                    title="Hapus"
-                                                >
-                                                    Hapus
-                                                </button>
-                                            </td>
+                                            {editId === team.id ? (
+                                                <>
+                                                    <td className="px-4 py-2">
+                                                        <input
+                                                            type="text"
+                                                            className="border rounded px-2 py-1 w-full"
+                                                            value={editTitle}
+                                                            onChange={e => setEditTitle(e.target.value)}
+                                                            autoFocus
+                                                        />
+                                                    </td>
+                                                    <td className="px-4 py-2">
+                                                        <input
+                                                            type="text"
+                                                            className="border rounded px-2 py-1 w-full"
+                                                            value={editDescription}
+                                                            onChange={e => setEditDescription(e.target.value)}
+                                                        />
+                                                    </td>
+                                                    <td className="px-4 py-2">
+                                                        <select
+                                                            className="border rounded px-2 py-1 w-full"
+                                                            value={editDivisionId}
+                                                            onChange={e => setEditDivisionId(e.target.value)}
+                                                        >
+                                                            <option value="">Pilih Divisi</option>
+                                                            {divisions.map(div => (
+                                                                <option key={div.id} value={div.id}>
+                                                                    {div.title || div.name}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </td>
+                                                    <td className="px-4 py-2 space-x-2">
+                                                        <button
+                                                            type="button"
+                                                            className="text-green-600 hover:underline"
+                                                            onClick={() => submitEdit(team)}
+                                                            title="Simpan"
+                                                        >
+                                                            <FaCheck />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="text-gray-500 hover:underline"
+                                                            onClick={cancelEdit}
+                                                            title="Batal"
+                                                        >
+                                                            <FaTimes />
+                                                        </button>
+                                                    </td>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <td className="px-4 py-2 font-medium text-blue-900">{team.title}</td>
+                                                    <td className="px-4 py-2">{team.description || '-'}</td>
+                                                    <td className="px-4 py-2">{team.division ? team.division.title : '-'}</td>
+                                                    <td className="px-4 py-2 space-x-2">
+                                                        <Link
+                                                            href={route('team-members.index', team.id)}
+                                                            className="text-purple-600 hover:underline"
+                                                            title="Kelola Anggota"
+                                                        >
+                                                            <FaUsers className="inline mr-1" /> Anggota
+                                                        </Link>
+                                                        <Link
+                                                            href={route('teams.show', team.id)}
+                                                            className="text-green-600 hover:underline"
+                                                            title="Detail"
+                                                        >
+                                                            Detail
+                                                        </Link>
+                                                        <button
+                                                            type="button"
+                                                            className="text-blue-600 hover:underline"
+                                                            onClick={() => startEdit(team)}
+                                                            title="Edit"
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDelete(team.id)}
+                                                            className="text-red-600 hover:underline"
+                                                            title="Hapus"
+                                                        >
+                                                            Hapus
+                                                        </button>
+                                                    </td>
+                                                </>
+                                            )}
                                         </tr>
                                     ))}
                                 </tbody>

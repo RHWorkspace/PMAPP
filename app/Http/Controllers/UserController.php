@@ -27,7 +27,7 @@ class UserController extends Controller
     // Tampilkan form tambah user
     public function create()
     {
-        $positions = \App\Models\Position::select('id', 'title')->get();
+        $positions = \App\Models\Position::select('id', 'title', 'description')->get();
         $divisions = \App\Models\Division::select('id', 'title')->get();
         return Inertia::render('Users/Create', [
             'positions' => $positions,
@@ -44,7 +44,7 @@ class UserController extends Controller
             'nik' => 'required|unique:users',
             'password' => 'required|min:6',
             'status' => 'required|in:Active,Inactive',
-            'type' => 'required|in:Karyawan,Magang',
+            'type' => 'required|in:Karyawan,JagooIT,Kontrak,Freelance,Magang',
             'position_id' => 'nullable|exists:positions,id',
             'division_id' => 'nullable|exists:divisions,id',
             'join_date' => 'nullable|date',
@@ -76,7 +76,7 @@ class UserController extends Controller
     // Tampilkan form edit user
     public function edit(User $user)
     {
-        $positions = \App\Models\Position::select('id', 'title')->get();
+        $positions = \App\Models\Position::select('id', 'title', 'description')->get();
         $divisions = \App\Models\Division::select('id', 'title')->get();
         return Inertia::render('Users/Edit', [
             'user' => $user,
@@ -93,7 +93,7 @@ class UserController extends Controller
             'email' => 'required|email|unique:users,email,' . $user->id,
             'nik' => 'required|unique:users,nik,' . $user->id,
             'status' => 'required|in:Active,Inactive',
-            'type' => 'required|in:Karyawan,Magang',
+            'type' => 'required|in:Karyawan,JagooIT,Kontrak,Freelance,Magang',
             'position_id' => 'nullable|exists:positions,id',
             'division_id' => 'nullable|exists:divisions,id',
             'join_date' => 'nullable|date',

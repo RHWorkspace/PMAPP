@@ -19,6 +19,7 @@ export default function ProjectSummary({
   const [filterStatus, setFilterStatus] = useState("");
   const [filterDivision, setFilterDivision] = useState("");
   const [filterTeam, setFilterTeam] = useState("");
+  const [showProgressList, setShowProgressList] = useState(true);
 
   // Hitung jumlah project per division
   const by_division = {};
@@ -26,44 +27,68 @@ export default function ProjectSummary({
     by_division[div.id] = projects.filter(p => String(p.division_id) === String(div.id)).length;
   });
 
-  // Hitung jumlah project per team
+  // Hitung jumlah project per team (berdasarkan aplikasi)
   const by_team = {};
   teams.forEach(team => {
-    by_team[team.id] = projects.filter(p => String(p.team_id) === String(team.id)).length;
+    by_team[team.id] = projects.filter(p =>
+      applications.some(app => String(app.project_id) === String(p.id) && String(app.team_id) === String(team.id))
+    ).length;
   });
 
   // Hitung jumlah aplikasi per team
   const by_team_app = {};
   teams.forEach(team => {
-    by_team_app[team.id] = projects
-      .filter(p => String(p.team_id) === String(team.id))
-      .reduce((acc, p) => acc + (Array.isArray(p.applications) ? p.applications.length : 0), 0);
+    by_team_app[team.id] = applications.filter(app => String(app.team_id) === String(team.id)).length;
   });
 
   // Hitung jumlah aplikasi total (jika data aplikasi tidak dikirim, gunakan relasi di project)
-  const totalApplications = projects.reduce(
-    (acc, p) => acc + (Array.isArray(p.applications) ? p.applications.length : 0),
-    0
-  );
+  const totalApplications = applications.length;
 
-  // Filter project sesuai pilihan (letakkan di atas sebelum digunakan)
+  // Ambil semua id divisi (termasuk sub) dari root tertentu
+  function getAllDivisionIds(rootId) {
+    const ids = [];
+    function traverse(id) {
+      ids.push(String(id)); // pastikan string
+      divisions.filter(d => String(d.parent_id) === String(id)).forEach(child => traverse(child.id));
+    }
+    if (rootId) traverse(rootId);
+    return ids;
+  }
+
+  // Untuk filtering teams: jika filterDivision aktif, ambil semua team dari divisi tsb dan seluruh sub-divisinya
+  const filteredDivisionIds = filterDivision ? getAllDivisionIds(filterDivision) : [];
+
+  // Filter project sesuai pilihan
   const filteredProjects = projects.filter(p => {
-    return (
-      (!filterStatus || p.status === filterStatus) &&
-      (!filterDivision || String(p.division_id) === filterDivision) &&
-      (!filterTeam || String(p.team_id) === filterTeam)
-    );
+    const matchStatus = !filterStatus || p.status === filterStatus;
+    const matchDivision = !filterDivision || filteredDivisionIds.includes(String(p.division_id));
+    const matchTeam = !filterTeam ||
+      applications.some(app => String(app.project_id) === String(p.id) && String(app.team_id) === filterTeam);
+    return matchStatus && matchDivision && matchTeam;
   });
 
-  // Filter teams sesuai filter divisi & team
+  // Ambil semua id divisi (termasuk sub) dari root tertentu
+  function getAllDivisionIds(rootId) {
+    const ids = [];
+    function traverse(id) {
+      ids.push(String(id)); // pastikan string
+      divisions.filter(d => String(d.parent_id) === String(id)).forEach(child => traverse(child.id));
+    }
+    if (rootId) traverse(rootId);
+    return ids;
+  }
+
+  
   const filteredTeams = teams.filter(team =>
-    (!filterDivision || String(team.division_id) === filterDivision) &&
+    (!filterDivision || filteredDivisionIds.includes(String(team.division_id))) &&
     (!filterTeam || String(team.id) === filterTeam)
   );
 
-  // Filter applications sesuai project hasil filter
+  // Untuk filtering aplikasi juga gunakan filteredTeams
+  const filteredTeamIds = filteredTeams.map(t => String(t.id));
   const filteredApplications = applications.filter(app =>
-    filteredProjects.some(p => String(p.id) === String(app.project_id))
+    filteredProjects.some(p => String(p.id) === String(app.project_id)) &&
+    (!filterDivision || filteredTeamIds.includes(String(app.team_id)))
   );
 
   // Daftar status urut tetap
@@ -84,11 +109,7 @@ export default function ProjectSummary({
   // Hitung jumlah aplikasi per team berdasarkan filteredProjects
   const filtered_by_team_app = {};
   teams.forEach(team => {
-    // Cari semua aplikasi yang project-nya ada di filteredProjects dan team-nya sesuai
-    filtered_by_team_app[team.id] = applications.filter(app => {
-      const project = filteredProjects.find(p => String(p.id) === String(app.project_id));
-      return project && String(project.team_id) === String(team.id);
-    }).length;
+    filtered_by_team_app[team.id] = filteredApplications.filter(app => String(app.team_id) === String(team.id)).length;
   });
 
   // Ambil root division
@@ -96,26 +117,41 @@ export default function ProjectSummary({
 
   // Komponen node org chart
   function OrgNode({ label, count, type, selected, onClick }) {
+    const isDivision = type === "division";
     return (
       <div
-        className={`org-tree-node ${type} flex items-center gap-2 justify-center mx-auto px-4 py-2 rounded-lg border shadow-sm cursor-pointer transition
-          ${selected ? (type === "division" ? "ring-2 ring-purple-200" : "ring-2 ring-sky-200") : ""}
+        className={`org-tree-node ${type} flex items-center ${isDivision ? "flex-row" : "flex-col"} gap-0.5 justify-center mx-auto px-1 py-0.5 rounded-lg border shadow-sm cursor-pointer transition
+          ${isDivision
+            ? "bg-purple-100 border-purple-300"
+            : "bg-sky-100 border-sky-300"
+          }
+          ${selected ? (isDivision ? "ring-2 ring-purple-400" : "ring-2 ring-sky-400") : ""}
         `}
         onClick={onClick}
         style={{
-          minWidth: 120,
-          maxWidth: 220,
-          fontSize: 15,
+          minWidth: 40,
+          maxWidth: 120,
+          fontSize: 11,
           userSelect: "none",
           outline: "none",
         }}
       >
-        <span className="inline-block bg-purple-200 text-purple-800 rounded px-2 py-0.5 text-xs font-bold min-w-[28px] text-center">
+        <span className={`inline-block font-bold min-w-[16px] text-center text-[10px]
+          ${isDivision ? "bg-purple-200 text-purple-800" : "bg-sky-200 text-sky-800"}
+          rounded px-1 py-0`}
+        >
           {count}
         </span>
-        <span className="truncate flex-1">{label}</span>
+        {isDivision ? (
+          <span className="truncate flex-1 text-xs">{label}</span>
+        ) : (
+          <span className="truncate flex-1 flex flex-col items-center gap-0">
+            <span role="img" aria-label="team" className="text-base leading-none">👥</span>
+            <span className="text-xs">{label}</span>
+          </span>
+        )}
         {selected && (
-          <span className="ml-1 text-xs text-purple-700 font-semibold">●</span>
+          <span className={`ml-0.5 text-xs font-semibold ${isDivision ? "text-purple-700" : "text-sky-700"}`}>●</span>
         )}
       </div>
     );
@@ -137,38 +173,37 @@ export default function ProjectSummary({
                 selected={String(selectedDivision) === String(div.id)}
                 onClick={() => {
                   setSelectedDivision(String(div.id));
-                  setFilterDivision(String(div.id)); // sinkron ke filter bar
+                  setFilterDivision(String(div.id));
                   setSelectedTeam("");
                   setFilterTeam("");
                 }}
               />
             }
           >
+            {/* --- Selalu render sub-division dan team --- */}
             {renderOrgChartTree(div.id)}
-            {divisions.some(d => String(d.parent_id) === String(div.id))
-              ? null
-              : teams
-                  .filter(t => String(t.division_id) === String(div.id))
-                  .map(team => (
-                    <TreeNode
-                      key={`team-${team.id}`}
-                      label={
-                        <OrgNode
-                          label={team.title || team.name || `Team ${team.id}`}
-                          count={by_team[String(team.id)] || 0}
-                          type="team"
-                          selected={String(selectedTeam) === String(team.id)}
-                          onClick={e => {
-                            e.stopPropagation();
-                            setSelectedTeam(String(team.id));
-                            setFilterTeam(String(team.id)); // sinkron ke filter bar
-                            setSelectedDivision(String(div.id));
-                            setFilterDivision(String(div.id));
-                          }}
-                        />
-                      }
+            {teams
+              .filter(t => String(t.division_id) === String(div.id))
+              .map(team => (
+                <TreeNode
+                  key={`team-${team.id}`}
+                  label={
+                    <OrgNode
+                      label={team.title || team.name || `Team ${team.id}`}
+                      count={by_team[String(team.id)] || 0}
+                      type="team"
+                      selected={String(selectedTeam) === String(team.id)}
+                      onClick={e => {
+                        e.stopPropagation();
+                        setSelectedTeam(String(team.id));
+                        setFilterTeam(String(team.id));
+                        setSelectedDivision(String(div.id));
+                        setFilterDivision(String(div.id));
+                      }}
                     />
-                  ))}
+                  }
+                />
+              ))}
           </TreeNode>
         ))}
       </>
@@ -176,18 +211,17 @@ export default function ProjectSummary({
   }
 
   // Progress Percentage Card
-  function ProjectProgressCard({ project }) {
-    // Ambil aplikasi milik project ini
-    const projectApps = applications.filter(app => String(app.project_id) === String(project.id));
-    // Ambil semua task milik aplikasi project ini
+  function ProjectProgressCard({ project, filterTeam }) {
+    const projectApps = applications.filter(app =>
+      String(app.project_id) === String(project.id) &&
+      (!filterTeam || String(app.team_id) === String(filterTeam))
+    );
     const appTasks = (appId) => tasks.filter(task => String(task.application_id) === String(appId));
-    // Dummy progress: misal persentase task selesai per aplikasi
     const getAppProgress = (appId) => {
       const appTaskList = appTasks(appId);
       const done = appTaskList.filter(t => t.status === "Done").length;
       return appTaskList.length > 0 ? Math.round((done / appTaskList.length) * 100) : 0;
     };
-    // Progress project: rata-rata progress aplikasi
     const appProgressList = projectApps.map(app => getAppProgress(app.id));
     const projectProgress = appProgressList.length > 0
       ? Math.round(appProgressList.reduce((a, b) => a + b, 0) / appProgressList.length)
@@ -206,7 +240,19 @@ export default function ProjectSummary({
         <div className="text-sm text-gray-600 mb-2">
           Status: <span className="font-semibold">{project.status || "-"}</span><br />
           Divisi: <span className="font-semibold">{division?.title || division?.name || "-"}</span><br />
-          Team: <span className="font-semibold">{team?.title || team?.name || "-"}</span>
+          Team: <span className="font-semibold">
+            {(() => {
+              const projectApps = applications.filter(app => String(app.project_id) === String(project.id));
+              const teamsInProject = teams.filter(team =>
+                projectApps.some(app => String(app.team_id) === String(team.id))
+              );
+              return teamsInProject.length > 0
+                ? teamsInProject.map(t => t.title || t.name).join(", ")
+                : "-";
+            })()}
+          </span><br />
+          Start: <span className="font-semibold">{project.start_date ? new Date(project.start_date).toLocaleDateString() : "-"}</span><br />
+          Due: <span className="font-semibold">{project.due_date ? new Date(project.due_date).toLocaleDateString() : "-"}</span>
         </div>
         <div className="flex items-center gap-3 mt-2 mb-1">
           <div className="flex-1 h-3 bg-gray-200 rounded">
@@ -217,7 +263,13 @@ export default function ProjectSummary({
           </div>
           <span className="font-bold text-lg">{projectProgress}%</span>
           <span className="text-gray-500 text-sm">
-            ({tasks.filter(t => String(t.project_id) === String(project.id)).length} task)
+            ({
+              // Ambil hanya aplikasi yang sudah terfilter oleh team
+              (() => {
+                const appIds = projectApps.map(app => String(app.id));
+                return tasks.filter(t => appIds.includes(String(t.application_id))).length;
+              })()
+            } task)
           </span>
           <button
             className="ml-2 px-3 py-1 rounded bg-purple-100 text-purple-700 text-xs font-semibold border border-purple-300 hover:bg-purple-200 transition"
@@ -254,6 +306,38 @@ export default function ProjectSummary({
     );
   }
 
+  // Cek apakah divisi punya sub-division
+  function hasSubDivision(divisionId) {
+    return divisions.some(d => String(d.parent_id) === String(divisionId));
+  }
+
+  // Handler filter divisi
+  function handleDivisionChange(e) {
+    const divId = e.target.value;
+    setFilterDivision(divId);
+    setSelectedDivision(divId);
+    // Reset team jika divisi berubah
+    setFilterTeam("");
+    setSelectedTeam("");
+  }
+
+  // Handler filter team
+  function handleTeamChange(e) {
+    const teamId = e.target.value;
+    setFilterTeam(teamId);
+    setSelectedTeam(teamId);
+  }
+
+  // Team option: hanya team dari divisi terpilih, dan hanya jika divisi tsb tidak punya sub
+  const hasTeamInDivision = filterDivision && teams.some(t => filteredDivisionIds.includes(String(t.division_id)));
+  const showTeamDropdown = !!filterDivision && hasTeamInDivision;
+  const teamOptions = showTeamDropdown
+    ? teams.filter(t => filteredDivisionIds.includes(String(t.division_id)))
+    : [];
+
+  console.log('teams', teams);
+  console.log('filteredDivisionIds', filteredDivisionIds);
+
   return (
     <AuthenticatedLayout header={<h2 className="text-2xl font-bold mb-6">{header || "Project Summary"}</h2>}>
       <div className="px-2 md:px-8 py-8 bg-gray-50 min-h-screen">
@@ -273,6 +357,8 @@ export default function ProjectSummary({
                 onClick={() => {
                   setSelectedDivision("");
                   setSelectedTeam("");
+                  setFilterDivision("");
+                  setFilterTeam("");
                 }}
               />
             }
@@ -297,23 +383,25 @@ export default function ProjectSummary({
         <select
           className="border border-gray-300 rounded-lg px-3 py-2 w-44 min-w-[140px] max-w-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-400 transition"
           value={filterDivision}
-          onChange={e => setFilterDivision(e.target.value)}
+          onChange={handleDivisionChange}
         >
           <option value="">Semua Divisi</option>
           {divisions.map((d) => (
             <option key={d.id} value={d.id}>{d.title || d.name}</option>
           ))}
         </select>
-        <select
-          className="border border-gray-300 rounded-lg px-3 py-2 w-44 min-w-[140px] max-w-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-400 transition"
-          value={filterTeam}
-          onChange={e => setFilterTeam(e.target.value)}
-        >
-          <option value="">Semua Team</option>
-          {teams.map((t) => (
-            <option key={t.id} value={t.id}>{t.title || t.name}</option>
-          ))}
-        </select>
+        {showTeamDropdown && (
+          <select
+            className="border border-gray-300 rounded-lg px-3 py-2 w-44 min-w-[140px] max-w-xs bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-400 transition"
+            value={filterTeam}
+            onChange={handleTeamChange}
+          >
+            <option value="">Semua Team</option>
+            {teamOptions.map((t) => (
+              <option key={t.id} value={t.id}>{t.title || t.name}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* Summary Cards */}
@@ -347,17 +435,25 @@ export default function ProjectSummary({
               </tr>
             </thead>
             <tbody>
-              {filteredTeams.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="text-gray-400 text-center py-2">Tidak ada team pada filter ini.</td>
-                </tr>
-              ) : (
-                filteredTeams.map(team => {
+              {(() => {
+                // Ambil seluruh team dari divisi yang difilter dan seluruh sub-divisinya
+                const teamsToShow = filterTeam
+                  ? teams.filter(team => String(team.id) === String(filterTeam))
+                  : filterDivision
+                    ? teams.filter(team => filteredDivisionIds.includes(String(team.division_id)))
+                    : teams;
+                if (teamsToShow.length === 0) {
+                  return (
+                    <tr>
+                      <td colSpan={3} className="text-gray-400 text-center py-2">Tidak ada team pada filter ini.</td>
+                    </tr>
+                  );
+                }
+                return teamsToShow.map(team => {
                   const division = divisions.find(d => String(d.id) === String(team.division_id));
-                  const qtyApp = filteredApplications.filter(app => {
-                    const project = filteredProjects.find(p => String(p.id) === String(app.project_id));
-                    return project && String(project.team_id) === String(team.id);
-                  }).length;
+                  const qtyApp = applications.filter(app =>
+                    String(app.team_id) === String(team.id)
+                  ).length;
                   return (
                     <tr key={team.id}>
                       <td className="py-1">{division?.title || division?.name || '-'}</td>
@@ -365,15 +461,34 @@ export default function ProjectSummary({
                       <td className="py-1 text-right font-semibold">{qtyApp}</td>
                     </tr>
                   );
-                })
-              )}
+                });
+              })()}
             </tbody>
           </table>
         </div>
         {/* Progress Percentage */}
         {filteredProjects.length > 0 ? (
           <div className="bg-white rounded-xl shadow p-4 w-full">
-            <ProjectProgressCard project={filteredProjects[0]} />
+            <div className="font-bold text-lg mb-2">Progress Percentage</div>
+            {/* Tambahkan tombol hide/show */}
+            <button
+              className="mb-3 px-3 py-1 rounded bg-purple-100 text-purple-700 text-xs font-semibold border border-purple-300 hover:bg-purple-200 transition"
+              onClick={() => setShowProgressList(v => !v)}
+            >
+              {showProgressList ? "Hide Project List" : "Show Project List"}
+            </button>
+            {/* Scroll vertikal */}
+            {showProgressList && (
+              <div className="overflow-y-auto max-h-96 pr-2">
+                <div className="flex flex-col gap-4">
+                  {filteredProjects.map(project => (
+                    <div key={project.id} className="min-w-[320px] max-w-xl">
+                      <ProjectProgressCard project={project} filterTeam={filterTeam} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow p-4 w-full flex items-center justify-center text-gray-400 italic">
@@ -388,9 +503,15 @@ export default function ProjectSummary({
           <div className="col-span-full text-center text-gray-400 italic">Tidak ada project pada filter ini.</div>
         ) : (
           filteredProjects.flatMap(project => {
-            const projectApps = filteredApplications.filter(app => String(app.project_id) === String(project.id));
-            const team = teams.find(t => String(t.id) === String(project.team_id));
-            const team_members = Array.isArray(team?.members) ? team.members : [];
+            // Filter aplikasi milik project ini dan team yang di-filter (jika ada)
+            const projectApps = filteredApplications.filter(app =>
+              String(app.project_id) === String(project.id) &&
+              (!filterTeam || String(app.team_id) === String(filterTeam))
+            );
+            const teamsInProject = teams.filter(team =>
+              projectApps.some(app => String(app.team_id) === String(team.id))
+            );
+            const team_members = teamsInProject.flatMap(team => Array.isArray(team?.members) ? team.members : []);
             if (projectApps.length === 0) {
               // Jika tidak ada aplikasi, tetap tampilkan card project
               return (
@@ -404,10 +525,11 @@ export default function ProjectSummary({
                   statuses={statuses}
                   modules={modules}
                   tasks={tasks}
+                  filterTeam={filterTeam} // <-- tambahkan ini
                 />
               );
             }
-            // Jika ada aplikasi, render satu card untuk setiap aplikasi
+            // Jika ada aplikasi, render satu card untuk setiap aplikasi (filtered by team)
             return projectApps.map(app => (
               <ProjectCard
                 key={`app-${app.id}`}
@@ -419,6 +541,7 @@ export default function ProjectSummary({
                 statuses={statuses}
                 modules={modules}
                 tasks={tasks}
+                filterTeam={filterTeam} // <-- tambahkan ini
               />
             ));
           })

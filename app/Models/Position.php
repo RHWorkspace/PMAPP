@@ -11,6 +11,7 @@ class Position extends Model
     protected $fillable = [
         'title',
         'description',
+        'rate', // tambahkan ini
     ];
 
     // Relasi ke User

@@ -1,6 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
+import { useMemo, useEffect, useState } from 'react';
 
 export default function Edit() {
     const { task, applications = [], sprints = [], users = [], tasks = [] } = usePage().props;
@@ -25,6 +26,25 @@ export default function Edit() {
         request_code: task.request_code || '',
         link_issue: task.link_issue || '',
     });
+
+    const [showedUsers, setShowedUsers] = useState(users);
+
+    useEffect(() => {
+        if (!data.application_id) {
+            setShowedUsers(users);
+        } else {
+            const selectedApp = applications.find(app => String(app.id) === String(data.application_id));
+            if (!selectedApp || !selectedApp.team || !selectedApp.team.members) {
+                setShowedUsers([]);
+            } else {
+                setShowedUsers(
+                    selectedApp.team.members
+                        .filter(member => member.user)
+                        .map(member => member.user)
+                );
+            }
+        }
+    }, [data.application_id, applications, users]);
 
     const isParent = !data.parent_id;
     const isSubtask = !!data.parent_id;
@@ -200,9 +220,9 @@ export default function Edit() {
                                             onChange={e => setData('assigned_to_user_id', e.target.value)}
                                         >
                                             <option value="">Pilih User</option>
-                                            {users.map((user) => (
-                                                <option key={user.id} value={user.id}>{user.name}</option>
-                                            ))}
+                                            {showedUsers.map((user) => (
+                                            <option key={user.id} value={user.id}>{user.name}</option>
+                                        ))}
                                         </select>
                                         {errors.assigned_to_user_id && <div className="text-red-600 text-sm">{errors.assigned_to_user_id}</div>}
                                     </div>

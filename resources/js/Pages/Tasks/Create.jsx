@@ -43,11 +43,11 @@ export default function Create() {
         } else {
             // Cari aplikasi yang dipilih
             const selectedApp = applications.find(app => String(app.id) === String(data.application_id));
-            if (!selectedApp || !selectedApp.project || !selectedApp.project.team || !selectedApp.project.team.members) {
+            if (!selectedApp || !selectedApp.team || !selectedApp.team.members) {
                 setShowedUsers([]);
             } else {
                 setShowedUsers(
-                    selectedApp.project.team.members
+                    selectedApp.team.members
                         .filter(member => member.user)
                         .map(member => member.user)
                 );

@@ -15,6 +15,14 @@ export default function Show() {
         return `${day}-${month}-${year}`;
     };
 
+    // Tambahkan di atas return
+    function formatRupiah(angka) {
+        if (angka === undefined || angka === null || angka === '') return '-';
+        const num = typeof angka === 'string' ? parseFloat(angka) : angka;
+        if (isNaN(num)) return '-';
+        return num.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 });
+    }
+
     return (
         <AuthenticatedLayout
             header={<h2 className="text-xl font-semibold leading-tight text-gray-800">Detail Project</h2>}
@@ -49,9 +57,23 @@ export default function Show() {
                                             <td className="font-semibold py-2 text-blue-900">Divisi</td>
                                             <td className="py-2">{project.division ? project.division.title : '-'}</td>
                                         </tr>
-                                        <tr>
+                                        {/* Hapus baris Team lama */}
+                                        {/* <tr>
                                             <td className="font-semibold py-2 text-blue-900">Team</td>
                                             <td className="py-2">{project.team ? project.team.title : '-'}</td>
+                                        </tr> */}
+                                        {/* Tambahkan daftar team dari aplikasi */}
+                                        <tr>
+                                            <td className="font-semibold py-2 text-blue-900">Teams</td>
+                                            <td className="py-2">
+                                                {project.applications && project.applications.length > 0
+                                                    ? [...new Set(
+                                                        project.applications
+                                                            .map(app => app.team?.title)
+                                                            .filter(Boolean)
+                                                      )].join(', ') || '-'
+                                                    : '-'}
+                                            </td>
                                         </tr>
                                         <tr>
                                             <td className="font-semibold py-2 text-blue-900">Status</td>
@@ -69,16 +91,16 @@ export default function Show() {
                                             <td className="font-semibold py-2 text-blue-900">Completed Date</td>
                                             <td className="py-2">{formatDate(project.completed_date)}</td>
                                         </tr>
+                                        <tr>
+                                            <td className="font-semibold py-2 text-blue-900">Nilai</td>
+                                            <td className="py-2">{project.nilai !== undefined && project.nilai !== null ? formatRupiah(project.nilai) : '-'}</td>
+                                        </tr>
                                     </tbody>
                                 </table>
                             </div>
                             <div>
                                 <table className="w-full text-base">
                                     <tbody>
-                                        <tr>
-                                            <td className="font-semibold py-2 text-blue-900 w-1/3">Created By</td>
-                                            <td className="py-2">{project.creator ? project.creator.name : '-'}</td>
-                                        </tr>
                                         <tr>
                                             <td className="font-semibold py-2 text-blue-900">Created At</td>
                                             <td className="py-2">{formatDate(project.created_at)}</td>

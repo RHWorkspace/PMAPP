@@ -3,6 +3,21 @@ import { Head, Link, usePage, router } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import { useEffect, useState } from 'react';
 import { FaEdit, FaCheck, FaTimes } from 'react-icons/fa';
+import { Tree, TreeNode } from 'react-organizational-chart';
+
+// Fungsi rekursif untuk membangun tree division
+function renderDivisionTree(divisions, parentId = null) {
+    return divisions
+        .filter(d => String(d.parent_id || '') === String(parentId || ''))
+        .map(d => (
+            <TreeNode
+                key={d.id}
+                label={<span className="px-2 py-1 bg-purple-100 rounded text-purple-700 font-semibold">{d.title}</span>}
+            >
+                {renderDivisionTree(divisions, d.id)}
+            </TreeNode>
+        ));
+}
 
 export default function Index() {
     const { divisions, flash } = usePage().props;
@@ -100,6 +115,18 @@ export default function Index() {
                                     Tambah Division
                                 </Link>
                             </div>
+                            {/* Chart Organisasi */}
+                            <div className="mb-8 overflow-auto">
+                                <Tree
+                                    lineWidth={'2px'}
+                                    lineColor={'#a78bfa'}
+                                    lineBorderRadius={'8px'}
+                                    label={<span className="px-2 py-1 bg-blue-200 rounded font-bold">N</span>}
+                                >
+                                    {renderDivisionTree(divisions)}
+                                </Tree>
+                            </div>
+                            {/* Tabel Division */}
                             <div className="overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead>

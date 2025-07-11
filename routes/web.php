@@ -36,12 +36,16 @@ Route::middleware('auth')->group(function () {
 
     // Project Summary
     Route::get('projects/summary', [ProjectController::class, 'summary'])->name('projects.summary');
+    // Project Timeline
+    Route::get('/projects/timeline', [ProjectController::class, 'timeline'])->name('projects.timeline');
+    // Project Comparison
+    Route::get('/projects/comparison', [ProjectController::class, 'comparison'])->name('projects.comparison');
 
     // Manage Role (CRUD)
     Route::resource('roles', RoleController::class);
 
     // Manage Position (CRUD)
-    Route::resource('positions', PisitionController::class);
+    Route::resource('positions', PisitionController::class)->parameters(['positions' => 'pisition']);
 
     // Manage Division (CRUD)
     Route::resource('divisions', DivisionController::class);
@@ -66,6 +70,9 @@ Route::middleware('auth')->group(function () {
 
     // Manage Sprint (CRUD)
     Route::resource('sprints', \App\Http\Controllers\SprintController::class);
+
+    // Route custom reporting harus sebelum resource!
+    Route::get('/tasks/reporting', [\App\Http\Controllers\TaskController::class, 'reporting'])->name('tasks.reporting');
 
     // Manage Task (CRUD)
     Route::resource('tasks', \App\Http\Controllers\TaskController::class);

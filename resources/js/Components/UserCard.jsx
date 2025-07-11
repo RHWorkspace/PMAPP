@@ -1,23 +1,5 @@
 import React, { useState } from "react";
 
-// Helper week number (Senin-Minggu)
-function getWeekNumber(date) {
-  const target = new Date(date.valueOf());
-  const dayNr = (date.getDay() + 6) % 7;
-  target.setDate(target.getDate() - dayNr + 3);
-  const firstThursday = new Date(target.getFullYear(), 0, 4);
-  const diff = target - firstThursday;
-  return 1 + Math.round(diff / (7 * 24 * 60 * 60 * 1000));
-}
-
-// Minggu ke-berapa dalam bulan berjalan
-function getWeekOfMonth(date) {
-  const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
-  const dayOfWeek = firstDay.getDay() || 7;
-  const offsetDate = date.getDate() + dayOfWeek - 1;
-  return Math.ceil(offsetDate / 7);
-}
-
 // Helper: dapatkan tanggal awal & akhir minggu berjalan (Senin-Minggu)
 function getCurrentWeekRange() {
   const now = new Date();
@@ -31,48 +13,6 @@ function getCurrentWeekRange() {
   return [monday, sunday];
 }
 
-// Hitung jumlah weekday (Senin-Jumat) dalam minggu berjalan
-function getWeekdayCountInCurrentWeek() {
-  const [monday, sunday] = getCurrentWeekRange();
-  let count = 0;
-  for (let d = new Date(monday); d <= sunday; d.setDate(d.getDate() + 1)) {
-    if (d.getDay() >= 1 && d.getDay() <= 5) count++;
-  }
-  return count;
-}
-
-// Hitung jam kerja task pada weekday minggu ini
-function getTaskHoursInCurrentWeekWeekday(task) {
-  if (!task.est_hours || !task.start_date || !task.due_date) return 0;
-  const [monday, sunday] = getCurrentWeekRange();
-  const start = new Date(task.start_date);
-  const end = new Date(task.due_date);
-
-  // Cari rentang overlap antara task dan minggu ini
-  const rangeStart = start > monday ? start : monday;
-  const rangeEnd = end < sunday ? end : sunday;
-
-  // Jika tidak overlap, return 0
-  if (rangeEnd < rangeStart) return 0;
-
-  // Hitung total hari task (termasuk weekend)
-  const totalTaskDays = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1);
-  const hoursPerDay = Number(task.est_hours) / totalTaskDays;
-
-  // Hitung jumlah weekday overlap
-  let overlapHours = 0;
-  for (
-    let d = new Date(rangeStart);
-    d <= rangeEnd;
-    d.setDate(d.getDate() + 1)
-  ) {
-    if (d.getDay() >= 1 && d.getDay() <= 5) {
-      overlapHours += hoursPerDay;
-    }
-  }
-  return overlapHours;
-}
-
 // Helper format tanggal dd/mm/yyyy
 function formatDateID(date) {
   if (!date) return "-";
@@ -83,12 +23,17 @@ function formatDateID(date) {
   return `${day}/${month}/${year}`;
 }
 
-function isWeekend(date) {
-  const day = date.getDay();
-  return day === 6 || day === 0; // 6 = Sabtu, 0 = Minggu
+// Helper: cek overdue
+function isDelayed(t) {
+  if (t.status === "Done" || !t.due_date) return false;
+  const due = new Date(t.due_date);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dueDate = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+  return dueDate < today;
 }
 
-// Tambahkan fungsi ini di atas komponen UserCard
+// Ambil task efektif (subtask + non-parent)
 function getEffectiveTasks(tasks) {
   const parentIds = new Set(tasks.filter(t => t.parent_id).map(t => String(t.parent_id)));
   const subTasks = tasks.filter(t => t.parent_id);
@@ -96,6 +41,90 @@ function getEffectiveTasks(tasks) {
     t => !t.parent_id && !parentIds.has(String(t.id))
   );
   return [...subTasks, ...nonParentTasks];
+}
+
+// Hitung jam kerja proporsional minggu ini (Senin-Jumat)
+function getWorkingHoursProportionalThisWeek(tasks) {
+  const [monday, sunday] = getCurrentWeekRange();
+  let total = 0;
+
+  tasks.forEach((task) => {
+    if (!task.est_hours || !task.start_date || !task.due_date) return;
+
+    const start = new Date(task.start_date);
+    const end = new Date(task.due_date);
+
+    // Cari overlap antara task dan minggu ini
+    const rangeStart = start > monday ? start : monday;
+    const rangeEnd = end < sunday ? end : sunday;
+
+    // Jika tidak overlap, skip
+    if (rangeEnd < rangeStart) return;
+
+    // Hitung jumlah weekday (Senin-Jumat) pada seluruh durasi task
+    let totalWeekdays = 0;
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      if (d.getDay() >= 1 && d.getDay() <= 5) totalWeekdays++;
+    }
+    if (totalWeekdays === 0) return;
+
+    // Hitung jumlah weekday overlap pada minggu ini
+    let overlapWeekdays = 0;
+    for (let d = new Date(rangeStart); d <= rangeEnd; d.setDate(d.getDate() + 1)) {
+      if (d.getDay() >= 1 && d.getDay() <= 5) overlapWeekdays++;
+    }
+    if (overlapWeekdays === 0) return;
+
+    // Jam proporsional minggu ini
+    const hoursPerWeekday = Number(task.est_hours) / totalWeekdays;
+    total += hoursPerWeekday * overlapWeekdays;
+  });
+
+  return total;
+}
+
+// Hitung sisa jam kerja minggu ini
+function getAvailableHoursThisWeek(userTasks, weeklyCapacity = 40) {
+  const used = getWorkingHoursProportionalThisWeek(userTasks);
+  return Math.max(0, weeklyCapacity - used);
+}
+
+// Hitung Next Available Date
+function getNextAvailableDateThisWeek(userTasks, workingHours, weeklyCapacity = 40) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Jika masih ada jam minggu ini, return hari kerja berikutnya (atau hari ini jika weekday)
+  if (workingHours < weeklyCapacity) {
+    if (today.getDay() >= 1 && today.getDay() <= 5) {
+      return today;
+    }
+    // Jika weekend, cari Senin berikutnya
+    const nextMonday = new Date(today);
+    nextMonday.setDate(today.getDate() + ((8 - today.getDay()) % 7));
+    return nextMonday;
+  }
+
+  // Jika sudah penuh, cari due_date terdekat dari task aktif
+  const nextDue = userTasks
+    .filter(t =>
+      (t.status === "In Progress" || t.status === "Todo") &&
+      t.due_date &&
+      new Date(t.due_date) >= today
+    )
+    .map(t => new Date(t.due_date))
+    .sort((a, b) => a - b)[0];
+
+  if (nextDue) {
+    // Cari hari kerja berikutnya setelah due_date
+    let next = new Date(nextDue);
+    do {
+      next.setDate(next.getDate() + 1);
+    } while (next.getDay() === 0 || next.getDay() === 6); // skip weekend
+    return next;
+  }
+
+  return "-";
 }
 
 export default function UserCard({
@@ -108,8 +137,8 @@ export default function UserCard({
   filterMonth,
   filterWeek,
   modules = [],
+  applications = [], // <-- tambahkan ini
 }) {
-  // Tambahkan state filter status lokal
   const [localStatus, setLocalStatus] = useState(null);
   const [showTable, setShowTable] = useState(false);
 
@@ -154,35 +183,56 @@ export default function UserCard({
   const effectiveUserTasks = getEffectiveTasks(userTasks);
 
   // --- Perhitungan status summary ---
-  const total = effectiveUserTasks.length;
-  const todo = effectiveUserTasks.filter((t) => t.status === "Todo").length;
-  const in_progress = effectiveUserTasks.filter((t) => t.status === "In Progress").length;
-  const done = effectiveUserTasks.filter((t) => t.status === "Done").length;
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const overdue = effectiveUserTasks.filter((t) => {
-    if (t.status === "Done" || !t.due_date) return false;
-    const due = new Date(t.due_date);
-    const dueDate = new Date(due.getFullYear(), due.getMonth(), due.getDate());
-    return dueDate < today;
-  }).length;
+  const statusList = ["Todo", "In Progress", "Done", "Pending", "Cancel", "Delayed"];
+  const statusCount = {};
+  statusList.forEach(st => {
+    if (st === "Delayed") {
+      statusCount[st] = effectiveUserTasks.filter(isDelayed).length;
+    } else {
+      statusCount[st] = effectiveUserTasks.filter(t => t.status === st).length;
+    }
+  });
+
+  // Format jam
+  const fmt = (val) =>
+    Number(val || 0).toLocaleString("id-ID", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    });
+
+  // Filter untuk tabel
+  const userTasksFiltered = localStatus
+    ? localStatus === "Delayed"
+      ? effectiveUserTasks.filter(isDelayed)
+      : effectiveUserTasks.filter(t => t.status === localStatus)
+    : effectiveUserTasks;
+
+  // Handler klik badge status
+  const handleStatusClick = (status) => {
+    if (localStatus === status && showTable) {
+      setLocalStatus(null);
+      setShowTable(false);
+    } else {
+      setLocalStatus(status);
+      setShowTable(true);
+    }
+  };
 
   // --- Perhitungan utama ---
   const workingHours = getWorkingHoursProportionalThisWeek(
     effectiveUserTasks.filter(t => t.status !== "Todo")
   );
-
-  // Done dan In Progress
   const doneTasks = effectiveUserTasks.filter(t => t.status === "Done");
   const inProgressTasks = effectiveUserTasks.filter(t => t.status === "In Progress");
   const doneHours = getWorkingHoursProportionalThisWeek(doneTasks);
   const inProgressHours = getWorkingHoursProportionalThisWeek(inProgressTasks);
 
   const weeklyCapacity = 40;
-  const availableHours = Math.max(0, weeklyCapacity - workingHours);
-  const nextAvailableDate = getNextAvailableDateThisWeek(effectiveUserTasks);
-
-  // Overload minggu ini
+  const availableHours = getAvailableHoursThisWeek(
+    effectiveUserTasks.filter(t => t.status !== "Todo"),
+    weeklyCapacity
+  );
+  const nextAvailableDate = getNextAvailableDateThisWeek(effectiveUserTasks, workingHours, weeklyCapacity);
   const isOverloadThisWeek = workingHours > weeklyCapacity;
 
   // Status badge
@@ -201,45 +251,13 @@ export default function UserCard({
     </span>
   ) : null;
 
-  // Handler klik badge status
-  const handleStatusClick = (status) => {
-    if (localStatus === status && showTable) {
-      setLocalStatus(null);
-      setShowTable(false);
-    } else {
-      setLocalStatus(status);
-      setShowTable(true);
-    }
-  };
-
-  // Hitung jumlah task berdasarkan status
-  const statusList = ["Todo", "In Progress", "Done", "Pending", "Cancel", "Delayed"];
-  const statusCount = {};
-  statusList.forEach(st => {
-    if (st === "Delayed") {
-      statusCount[st] = effectiveUserTasks.filter(t => {
-        if (t.status === "Done" || !t.due_date) return false;
-        const due = new Date(t.due_date);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const dueDate = new Date(due.getFullYear(), due.getMonth(), due.getDate());
-        return dueDate < today;
-      }).length;
-    } else {
-      statusCount[st] = effectiveUserTasks.filter(t => t.status === st).length;
-    }
-  });
-
-  // Format jam
-  const fmt = (val) =>
-    Number(val || 0).toLocaleString("id-ID", {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
+  const appMap = React.useMemo(() => {
+    const map = {};
+    applications.forEach(app => {
+      map[String(app.id)] = app;
     });
-
-  const userTasksFiltered = localStatus
-    ? effectiveUserTasks.filter(t => t.status === localStatus)
-    : effectiveUserTasks;
+    return map;
+  }, [applications]);
 
   return (
     <div
@@ -326,37 +344,47 @@ export default function UserCard({
                 <tr className="bg-blue-100">
                   <th className="px-2 py-1 text-left">Title</th>
                   <th className="px-2 py-1 text-left">Module</th>
+                  <th className="px-2 py-1 text-left">Application</th> {/* Tambahkan kolom ini */}
                   <th className="px-2 py-1 text-left">Due</th>
                   <th className="px-2 py-1 text-left">Status</th>
-                  <th className="px-2 py-1 text-left">Progress</th> {/* Tambahkan kolom progress */}
+                  <th className="px-2 py-1 text-left">Progress</th>
                 </tr>
               </thead>
               <tbody>
                 {userTasks
                   .filter(parent =>
-                    // tampilkan parent jika:
-                    // - dia lolos filter status, atau
-                    // - ada subtask-nya yang lolos filter status
                     (!parent.parent_id) &&
                     (
-                      (!localStatus || parent.status === localStatus) ||
-                      userTasks.some(child => child.parent_id === parent.id && (!localStatus || child.status === localStatus))
+                      (!localStatus || (localStatus !== "Delayed" ? parent.status === localStatus : isDelayed(parent))) ||
+                      userTasks.some(child => child.parent_id === parent.id && (!localStatus || (localStatus !== "Delayed" ? child.status === localStatus : isDelayed(child))))
                     )
                   )
                   .map(parent => (
                     <React.Fragment key={parent.id}>
                       {/* Parent row */}
-                      {(!localStatus || parent.status === localStatus) && (
+                      {(!localStatus ||
+                        (localStatus === "Delayed"
+                          ? isDelayed(parent)
+                          : parent.status === localStatus
+                        )
+                      ) && (
                         <tr className="border-t bg-white">
                           <td className="px-2 py-1 font-semibold">{parent.title}</td>
                           <td className="px-2 py-1">
                             {modules.find(m => String(m.id) === String(parent.module_id))?.title || "-"}
                           </td>
+                          <td className="px-2 py-1">
+                            {appMap[String(parent.application_id)]?.title ||
+                              appMap[String(parent.application_id)]?.name ||
+                              "-"}
+                          </td>
                           <td className="px-2 py-1">{parent.due_date ? parent.due_date : "-"}</td>
                           <td className="px-2 py-1">
                             <span
                               className={
-                                parent.status === "Done"
+                                isDelayed(parent)
+                                  ? "bg-red-100 text-red-700 px-2 py-0.5 rounded"
+                                  : parent.status === "Done"
                                   ? "bg-green-100 text-green-700 px-2 py-0.5 rounded"
                                   : parent.status === "In Progress"
                                   ? "bg-orange-100 text-orange-700 px-2 py-0.5 rounded"
@@ -366,26 +394,10 @@ export default function UserCard({
                                   ? "bg-gray-100 text-gray-700 px-2 py-0.5 rounded"
                                   : parent.status === "Cancel"
                                   ? "bg-gray-200 text-gray-500 px-2 py-0.5 rounded"
-                                  : // Delayed (overdue)
-                                  (() => {
-                                      if (
-                                        parent.status !== "Done" &&
-                                        parent.due_date &&
-                                        new Date(parent.due_date) < new Date(new Date().setHours(0,0,0,0))
-                                      ) {
-                                        return "bg-red-100 text-red-700 px-2 py-0.5 rounded";
-                                      }
-                                      return "bg-gray-100 text-gray-700 px-2 py-0.5 rounded";
-                                    })()
+                                  : "bg-gray-100 text-gray-700 px-2 py-0.5 rounded"
                               }
                             >
-                              {parent.status === "Delayed" || (
-                                parent.status !== "Done" &&
-                                parent.due_date &&
-                                new Date(parent.due_date) < new Date(new Date().setHours(0,0,0,0))
-                              )
-                                ? "Delayed"
-                                : parent.status}
+                              {isDelayed(parent) ? "Delayed" : parent.status}
                             </span>
                           </td>
                           <td className="px-2 py-1">
@@ -395,29 +407,47 @@ export default function UserCard({
                       )}
                       {/* Subtask rows */}
                       {userTasks
-                        .filter(child => child.parent_id === parent.id && (!localStatus || child.status === localStatus))
+                        .filter(child =>
+                          child.parent_id === parent.id &&
+                          (
+                            !localStatus ||
+                            (localStatus === "Delayed"
+                              ? isDelayed(child)
+                              : child.status === localStatus
+                            )
+                          )
+                        )
                         .map(child => (
                           <tr key={child.id} className="border-t bg-blue-50">
                             <td className="px-2 py-1 pl-6 text-sm">└─ {child.title}</td>
                             <td className="px-2 py-1">
                               {modules.find(m => String(m.id) === String(child.module_id))?.title || "-"}
                             </td>
+                            <td className="px-2 py-1">
+                              {appMap[String(child.application_id)]?.title ||
+                                appMap[String(child.application_id)]?.name ||
+                                "-"}
+                            </td>
                             <td className="px-2 py-1">{child.due_date ? child.due_date : "-"}</td>
                             <td className="px-2 py-1">
                               <span
                                 className={
-                                  child.status === "done"
-                                    ? "bg-green-100 text-green-700 px-2 py-0.5 rounded"
-                                    : child.status === "in_progress"
-                                    ? "bg-orange-100 text-orange-700 px-2 py-0.5 rounded"
-                                    : child.status === "todo"
-                                    ? "bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded"
-                                    : child.status === "overdue"
+                                  isDelayed(child)
                                     ? "bg-red-100 text-red-700 px-2 py-0.5 rounded"
+                                    : child.status === "Done"
+                                    ? "bg-green-100 text-green-700 px-2 py-0.5 rounded"
+                                    : child.status === "In Progress"
+                                    ? "bg-orange-100 text-orange-700 px-2 py-0.5 rounded"
+                                    : child.status === "Todo"
+                                    ? "bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded"
+                                    : child.status === "Pending"
+                                    ? "bg-gray-100 text-gray-700 px-2 py-0.5 rounded"
+                                    : child.status === "Cancel"
+                                    ? "bg-gray-200 text-gray-500 px-2 py-0.5 rounded"
                                     : "bg-gray-100 text-gray-700 px-2 py-0.5 rounded"
                                 }
                               >
-                                {child.status}
+                                {isDelayed(child) ? "Delayed" : child.status}
                               </span>
                             </td>
                             <td className="px-2 py-1">
@@ -479,7 +509,7 @@ export default function UserCard({
         <div>
           <span className="font-semibold text-gray-600">Next Available:</span>{" "}
           <span className="font-bold">
-            {nextAvailableDate ? formatDateID(nextAvailableDate) : "-"}
+            {nextAvailableDate && nextAvailableDate !== "-" ? formatDateID(nextAvailableDate) : "-"}
           </span>
         </div>
         <div>
@@ -491,192 +521,4 @@ export default function UserCard({
       </div>
     </div>
   );
-}
-
-function getWorkingHoursPerDayThisWeek(userTasks) {
-  const [monday, sunday] = getCurrentWeekRange();
-  const dayMap = {};
-  for (
-    let d = new Date(monday);
-    d <= sunday;
-    d.setDate(d.getDate() + 1)
-  ) {
-    if (d.getDay() >= 1 && d.getDay() <= 5) {
-      const key = d.toISOString().slice(0, 10);
-      dayMap[key] = 0;
-    }
-  }
-
-  userTasks.forEach((task) => {
-    if (!task.est_hours || !task.start_date || !task.due_date) return;
-    const start = new Date(task.start_date);
-    const end = new Date(task.due_date);
-
-    // Cari overlap dengan minggu ini
-    const rangeStart = start > monday ? start : monday;
-    const rangeEnd = end < sunday ? end : sunday;
-
-    // Hitung jumlah weekday overlap antara task dan minggu ini
-    let weekdayOverlap = 0;
-    for (
-      let d = new Date(rangeStart);
-      d <= rangeEnd;
-      d.setDate(d.getDate() + 1)
-    ) {
-      if (d.getDay() >= 1 && d.getDay() <= 5) {
-        weekdayOverlap++;
-      }
-    }
-    if (weekdayOverlap === 0) return;
-
-    const hoursPerDay = Number(task.est_hours) / weekdayOverlap;
-
-    for (
-      let d = new Date(rangeStart);
-      d <= rangeEnd;
-      d.setDate(d.getDate() + 1)
-    ) {
-      if (d.getDay() >= 1 && d.getDay() <= 5) {
-        const key = d.toISOString().slice(0, 10);
-        if (dayMap[key] !== undefined) {
-          dayMap[key] += hoursPerDay;
-        }
-      }
-    }
-  });
-
-  // Totalkan semua jam kerja weekday minggu ini (tanpa batas 8 jam/hari)
-  let total = 0;
-  Object.values(dayMap).forEach((jam) => {
-    total += jam;
-  });
-  return total;
-}
-
-function getNextAvailableDateThisWeek(userTasks) {
-  const [monday, sunday] = getCurrentWeekRange();
-  // Filter hanya task in_progress minggu ini
-  const inProgressTasks = userTasks.filter(
-    t => (t.status === "in_progress" || t.status === "done")
-  );
-
-  // Hitung total jam in_progress minggu ini
-  let totalInProgressHours = 0;
-  inProgressTasks.forEach((task) => {
-    if (!task.est_hours || !task.start_date || !task.due_date) return;
-    const start = new Date(task.start_date);
-    const end = new Date(task.due_date);
-    // Overlap dengan minggu ini
-    const rangeStart = start > monday ? start : monday;
-    const rangeEnd = end < sunday ? end : sunday;
-    if (rangeEnd < rangeStart) return;
-    // Hitung weekday overlap
-    let weekdayCount = 0;
-    for (let d = new Date(rangeStart); d <= rangeEnd; d.setDate(d.getDate() + 1)) {
-      if (d.getDay() >= 1 && d.getDay() <= 5) weekdayCount++;
-    }
-    if (weekdayCount === 0) return;
-    const hoursPerDay = Number(task.est_hours) / weekdayCount;
-    for (let d = new Date(rangeStart); d <= rangeEnd; d.setDate(d.getDate() + 1)) {
-      if (d.getDay() >= 1 && d.getDay() <= 5) {
-        totalInProgressHours += hoursPerDay;
-      }
-    }
-  });
-
-  // Jika tidak ada in_progress minggu ini, next available = hari ini
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  if (totalInProgressHours === 0) {
-    return now;
-  }
-
-  // Simulasikan alokasi jam kerja per hari (maks 8 jam/hari, Senin-Jumat)
-  let jamSisa = totalInProgressHours;
-  for (
-    let d = new Date(now);
-    d <= sunday;
-    d.setDate(d.getDate() + 1)
-  ) {
-    if (d.getDay() >= 1 && d.getDay() <= 5) {
-      if (jamSisa <= 0) {
-        // Hari ini sudah available
-        return new Date(d);
-      }
-      jamSisa -= 8;
-    }
-  }
-
-  // Jika minggu ini penuh, next available = Senin minggu depan
-  const nextMonday = new Date(monday);
-  nextMonday.setDate(monday.getDate() + 7);
-  return nextMonday;
-}
-
-function getFilteredWeekdayCount(tasks) {
-  // Ambil semua tanggal due_date dari tasks yang sudah terfilter
-  const weekdaySet = new Set();
-  tasks.forEach((t) => {
-    if (!t.due_date) return;
-    const d = new Date(t.due_date);
-    const day = d.getDay();
-    // Hanya Senin-Jumat
-    if (day >= 1 && day <= 5) {
-      // Format yyyy-mm-dd supaya unik per hari
-      weekdaySet.add(d.toISOString().slice(0, 10));
-    }
-  });
-  return weekdaySet.size;
-}
-
-function getWorkingHoursProportionalThisWeek(tasks) {
-  const [monday, sunday] = getCurrentWeekRange();
-  let total = 0;
-
-  tasks.forEach((task) => {
-    if (!task.est_hours || !task.start_date || !task.due_date) return;
-
-    const start = new Date(task.start_date);
-    const end = new Date(task.due_date);
-
-    // Cari overlap antara task dan minggu ini
-    const rangeStart = start > monday ? start : monday;
-    const rangeEnd = end < sunday ? end : sunday;
-
-    // Jika tidak overlap, skip
-    if (rangeEnd < rangeStart) return;
-
-    // Hitung jumlah weekday (Senin-Jumat) pada seluruh durasi task
-    let totalWeekdays = 0;
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      if (d.getDay() >= 1 && d.getDay() <= 5) totalWeekdays++;
-    }
-    if (totalWeekdays === 0) return;
-
-    // Hitung jumlah weekday overlap pada minggu ini
-    let overlapWeekdays = 0;
-    for (let d = new Date(rangeStart); d <= rangeEnd; d.setDate(d.getDate() + 1)) {
-      if (d.getDay() >= 1 && d.getDay() <= 5) overlapWeekdays++;
-    }
-    if (overlapWeekdays === 0) return;
-
-    // Jam proporsional minggu ini
-    const hoursPerWeekday = Number(task.est_hours) / totalWeekdays;
-    total += hoursPerWeekday * overlapWeekdays;
-  });
-
-  return total;
-}
-
-function getNextAvailableDate(userTasks, weeklyWorkingHours, usedHours) {
-  // Jika masih ada jam tersedia minggu ini, return hari ini
-  if (usedHours < weeklyWorkingHours) {
-    return new Date().toLocaleDateString("id-ID");
-  }
-  // Cari due_date terdekat dari task in_progress
-  const next = userTasks
-    .filter(t => t.status === "in_progress" && t.due_date)
-    .map(t => new Date(t.due_date))
-    .sort((a, b) => a - b)[0];
-  return next ? next.toLocaleDateString("id-ID") : "-";
 }

@@ -15,16 +15,15 @@ return new class extends Migration
             $table->id();
             $table->string('title');
             $table->text('description')->nullable();
+            $table->decimal('nilai', 15, 2)->nullable();
             $table->enum('status', ['Initiating','Planning','Executing','Monitoring & Controlling','Closing'])->default('Initiating');
             $table->unsignedBigInteger('division_id');
-            $table->unsignedBigInteger('team_id');
             $table->date('start_date')->nullable();
             $table->date('due_date')->nullable();
             $table->date('completed_date')->nullable();
             $table->timestamps();
 
             $table->foreign('division_id')->references('id')->on('divisions');
-            $table->foreign('team_id')->references('id')->on('teams');
         });
     }
 

@@ -4,12 +4,19 @@ import Swal from 'sweetalert2';
 import { useEffect, useState } from 'react';
 import { FaEdit, FaCheck, FaTimes } from 'react-icons/fa';
 
+// Tambahkan fungsi formatRupiah di atas komponen
+function formatRupiah(angka) {
+    if (!angka) return '-';
+    return 'Rp ' + Number(angka).toLocaleString('id-ID');
+}
+
 export default function Index() {
     const { positions, flash } = usePage().props;
 
     const [editId, setEditId] = useState(null);
     const [editTitle, setEditTitle] = useState('');
     const [editDescription, setEditDescription] = useState('');
+    const [editRate, setEditRate] = useState(''); // tambahkan state rate
 
     useEffect(() => {
         if (flash && flash.success) {
@@ -51,23 +58,27 @@ export default function Index() {
         setEditId(position.id);
         setEditTitle(position.title);
         setEditDescription(position.description || '');
+        setEditRate(position.rate || ''); // set rate
     };
 
     const cancelEdit = () => {
         setEditId(null);
         setEditTitle('');
         setEditDescription('');
+        setEditRate(''); // reset rate
     };
 
     const submitEdit = (position) => {
         router.put(route('positions.update', position.id), {
             title: editTitle,
             description: editDescription,
+            rate: editRate, // kirim rate
         }, {
             onSuccess: () => {
                 setEditId(null);
                 setEditTitle('');
                 setEditDescription('');
+                setEditRate('');
             }
         });
     };
@@ -98,13 +109,14 @@ export default function Index() {
                                             <th className="px-4 py-2 text-left">#</th>
                                             <th className="px-4 py-2 text-left">Nama</th>
                                             <th className="px-4 py-2 text-left">Deskripsi</th>
+                                            <th className="px-4 py-2 text-left">Rate</th> {/* tambahkan kolom rate */}
                                             <th className="px-4 py-2 text-left">Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {positions.length === 0 && (
                                             <tr>
-                                                <td colSpan={4} className="text-center py-4">Tidak ada data position.</td>
+                                                <td colSpan={5} className="text-center py-4">Tidak ada data position.</td>
                                             </tr>
                                         )}
                                         {positions.map((position, idx) => (
@@ -117,7 +129,6 @@ export default function Index() {
                                                             className="border rounded px-2 py-1 w-full"
                                                             value={editTitle}
                                                             onChange={e => setEditTitle(e.target.value)}
-                                                            onBlur={() => submitEdit(position)}
                                                             autoFocus
                                                         />
                                                     ) : (
@@ -131,10 +142,21 @@ export default function Index() {
                                                             className="border rounded px-2 py-1 w-full"
                                                             value={editDescription}
                                                             onChange={e => setEditDescription(e.target.value)}
-                                                            onBlur={() => submitEdit(position)}
                                                         />
                                                     ) : (
                                                         <span>{position.description || '-'}</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-2">
+                                                    {editId === position.id ? (
+                                                        <input
+                                                            type="number"
+                                                            className="border rounded px-2 py-1 w-full"
+                                                            value={editRate}
+                                                            onChange={e => setEditRate(e.target.value)}
+                                                        />
+                                                    ) : (
+                                                        <span>{position.rate ? formatRupiah(position.rate) : '-'}</span>
                                                     )}
                                                 </td>
                                                 <td className="px-4 py-2 space-x-2">

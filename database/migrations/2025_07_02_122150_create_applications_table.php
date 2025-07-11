@@ -17,6 +17,7 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->enum('status', ['Draft', 'Active', 'Completed', 'Cancelled'])->default('Draft');
             $table->unsignedBigInteger('project_id'); // ganti dari team_id ke project_id
+            $table->unsignedBigInteger('team_id');
             $table->date('start_date')->nullable();
             $table->date('due_date')->nullable();
             $table->date('completed_date')->nullable();
@@ -26,6 +27,7 @@ return new class extends Migration
 
             $table->foreign('project_id')->references('id')->on('projects'); // ganti relasi ke projects
             $table->foreign('created_by')->references('id')->on('users');
+            $table->foreign('team_id')->references('id')->on('teams');
         });
     }
 

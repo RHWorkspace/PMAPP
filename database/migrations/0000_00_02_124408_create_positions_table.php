@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('title'); // PM, SA, DEV, TW, QA
             $table->text('description')->nullable();
+            $table->decimal('rate', 15, 2)->nullable();
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
         });

@@ -12,7 +12,8 @@ class Application extends Model
         'title',
         'description',
         'status',
-        'project_id', // ganti dari team_id ke project_id
+        'project_id',
+        'team_id',
         'start_date',
         'due_date',
         'completed_date',
@@ -23,6 +24,12 @@ class Application extends Model
     public function project()
     {
         return $this->belongsTo(Project::class, 'project_id');
+    }
+
+    // Relasi ke Team
+    public function team()
+    {
+        return $this->belongsTo(Team::class, 'team_id');
     }
 
     // Relasi ke User (pembuat aplikasi)
@@ -41,11 +48,5 @@ class Application extends Model
     public function tasks()
     {
         return $this->hasMany(Task::class, 'application_id');
-    }
-
-    // Relasi ke Team
-    public function team()
-    {
-        return $this->belongsTo(Team::class, 'team_id');
     }
 }

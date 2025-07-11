@@ -4,7 +4,6 @@ import { Link, usePage } from '@inertiajs/react';
 
 export default function Sidebar({ user }) {
     const [openSection, setOpenSection] = useState(() => {
-        // Ambil dari localStorage jika ada
         const saved = localStorage.getItem('sidebarOpenSection');
         return saved ? JSON.parse(saved) : { project: false, task: false, user: false };
     });
@@ -13,16 +12,12 @@ export default function Sidebar({ user }) {
         localStorage.setItem('sidebarOpenSection', JSON.stringify(openSection));
     }, [openSection]);
 
-    // Toggle hanya section yang diklik, tidak menutup section lain
     const handleToggle = (section) => {
         setOpenSection(prev => ({
             ...prev,
             [section]: !prev[section]
         }));
     };
-
-    // Submenu tidak perlu handle apapun, biarkan hanya navigasi saja
-    // Tidak perlu handleSubmenuClick
 
     return (
         <aside className="flex flex-col h-screen w-64 bg-white border-r shadow-sm sticky top-0 left-0 z-30">
@@ -33,7 +28,7 @@ export default function Sidebar({ user }) {
                 <ul className="space-y-2 text-gray-700 text-sm">
                     <li>
                         <Link href="/dashboard" className="flex items-center gap-3 py-2 px-3 rounded hover:bg-gray-100">
-                            <FaHome /> Dashboard
+                            <FaHome /> Home
                         </Link>
                     </li>
                     <li className="mt-4 mb-1 text-xs font-semibold text-gray-400 uppercase">Summary</li>
@@ -43,8 +38,18 @@ export default function Sidebar({ user }) {
                         </Link>
                     </li>
                     <li>
+                        <Link href="/projects/timeline" className="flex items-center gap-3 py-2 px-3 rounded hover:bg-gray-100">
+                            <FaChartBar /> Timeline
+                        </Link>
+                    </li>
+                    <li>
                         <Link href="/users/summary" className="flex items-center gap-3 py-2 px-3 rounded hover:bg-gray-100">
                             <FaChartBar /> Workload
+                        </Link>
+                    </li>
+                    <li>
+                        <Link href="/projects/comparison" className="flex items-center gap-3 py-2 px-3 rounded hover:bg-gray-100">
+                            <FaChartBar /> Comparison
                         </Link>
                     </li>
                     {/* Project Section */}
@@ -119,6 +124,14 @@ export default function Sidebar({ user }) {
                                     className="flex items-center gap-3 py-2 px-3 rounded hover:bg-gray-100"
                                 >
                                     <FaTasks /> Manage Task
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
+                                    href="/tasks/reporting"
+                                    className="flex items-center gap-3 py-2 px-3 rounded hover:bg-gray-100"
+                                >
+                                    <FaChartBar /> Reporting
                                 </Link>
                             </li>
                         </>

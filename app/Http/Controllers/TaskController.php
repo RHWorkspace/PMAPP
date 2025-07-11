@@ -17,10 +17,11 @@ class TaskController extends Controller
     {
         // Pastikan eager load relasi yang dibutuhkan
         $tasks = Task::with(['application', 'module', 'sprint', 'assignedTo', 'parent', 'subtasks'])->get();
-        $applications = Application::select('id', 'title')->get();
+        $applications = Application::with(['project', 'team.members.user'])->get();
         $sprints = Sprint::select('id', 'title')->get();
         $users = User::select('id', 'name')->get();
         $modules = Module::select('id', 'title', 'application_id')->get(); // Tambahkan baris ini
+        $teams = \App\Models\Team::select('id', 'title')->get();
 
         return Inertia::render('Tasks/Index', [
             'tasks' => $tasks,
@@ -28,13 +29,14 @@ class TaskController extends Controller
             'sprints' => $sprints,
             'users' => $users,
             'modules' => $modules, // Tambahkan baris ini
+            'teams' => $teams,
         ]);
     }
 
     // Tampilkan form tambah task
     public function create()
     {
-        $applications = Application::with('project.team.members.user')->get();
+        $applications = Application::with(['project', 'team.members.user'])->get();
         $sprints = Sprint::select('id', 'title')->get();
         $users = User::select('id', 'name')->get();
         $tasks = Task::select('id', 'title', 'parent_id')->get(); // <-- Tambahkan 'parent_id' di sini
@@ -115,7 +117,14 @@ class TaskController extends Controller
     // Tampilkan detail task
     public function show(Task $task)
     {
-        $task->load(['application', 'sprint', 'assignedTo', 'parent', 'subtasks', 'module']);
+        $task->load([
+            'application.team', // pastikan relasi team pada application ikut di-load
+            'sprint',
+            'assignedTo',
+            'parent',
+            'subtasks',
+            'module'
+        ]);
         return Inertia::render('Tasks/Show', [
             'task' => $task,
         ]);
@@ -124,10 +133,10 @@ class TaskController extends Controller
     // Tampilkan form edit task
     public function edit(Task $task)
     {
-        $applications = Application::select('id', 'title')->get();
+        $applications = Application::with(['team.members.user'])->select('id', 'title', 'team_id')->get();
         $sprints = Sprint::select('id', 'title')->get();
         $users = User::select('id', 'name')->get();
-        $tasks = Task::select('id', 'title', 'parent_id', 'est_hours', 'start_date', 'due_date')->get(); // Ambil semua, termasuk subtasks
+        $tasks = Task::select('id', 'title', 'parent_id', 'est_hours', 'start_date', 'due_date')->get();
         $modules = Module::select('id', 'title', 'application_id')->get();
         return Inertia::render('Tasks/Edit', [
             'task' => $task->load(['application', 'sprint', 'assignedTo', 'parent', 'module']),
@@ -212,7 +221,44 @@ class TaskController extends Controller
     // Hapus task
     public function destroy(Task $task)
     {
+        // Hapus semua subtask
+        Task::where('parent_id', $task->id)->delete();
         $task->delete();
         return redirect()->route('tasks.index')->with('success', 'Task berhasil dihapus!');
+    }
+
+    // Tampilkan halaman reporting
+    public function reporting()
+    {
+        $tasks = Task::with(['application.team.division', 'module'])
+            ->select('id', 'title', 'application_id', 'module_id', 'status', 'progress', 'due_date', 'description', 'parent_id')
+            ->get();
+
+        // Format data agar mudah dipakai di frontend
+        $tasksFormatted = $tasks->map(function ($task) {
+            return [
+                'id' => $task->id,
+                'title' => $task->title,
+                'application' => $task->application ? $task->application->title : '-',
+                'module' => $task->module ? $task->module->title : '-',
+                'status' => $task->status,
+                'progress' => $task->progress,
+                'parent_id' => $task->parent_id,
+                'dueDate' => $task->due_date ? date('d/m/y', strtotime($task->due_date)) : '-',
+                'description' => $task->description ?? '',
+                'division_id' => $task->application && $task->application->team && $task->application->team->division ? $task->application->team->division->id : null,
+                'team_id' => $task->application && $task->application->team ? $task->application->team->id : null,
+            ];
+        });
+
+        // Ambil data divisi dan tim untuk filter
+        $divisions = \App\Models\Division::select('id', 'title')->get();
+        $teams = \App\Models\Team::select('id', 'title', 'division_id')->get();
+
+        return Inertia::render('Tasks/Reporting', [
+            'tasks' => $tasksFormatted,
+            'divisions' => $divisions,
+            'teams' => $teams,
+        ]);
     }
 }

@@ -29,6 +29,7 @@ class PisitionController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'rate' => 'nullable|numeric', // tambahkan validasi rate
         ]);
 
         Position::create($validated);
@@ -58,6 +59,7 @@ class PisitionController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'rate' => 'nullable|numeric', // tambahkan validasi rate
         ]);
 
         $pisition->update($validated);

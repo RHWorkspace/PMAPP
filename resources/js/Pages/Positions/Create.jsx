@@ -5,6 +5,7 @@ export default function Create() {
     const { data, setData, post, processing, errors, reset } = useForm({
         title: '',
         description: '',
+        rate: '', // tambahkan rate di state form
     });
 
     const handleSubmit = (e) => {
@@ -40,6 +41,16 @@ export default function Create() {
                                     onChange={e => setData('description', e.target.value)}
                                 />
                                 {errors.description && <div className="text-red-600 text-sm">{errors.description}</div>}
+                            </div>
+                            <div>
+                                <label className="block font-medium">Rate</label>
+                                <input
+                                    type="number"
+                                    className="mt-1 block w-full border-gray-300 rounded"
+                                    value={data.rate}
+                                    onChange={e => setData('rate', e.target.value)}
+                                />
+                                {errors.rate && <div className="text-red-600 text-sm">{errors.rate}</div>}
                             </div>
                             <div className="flex items-center gap-4">
                                 <button

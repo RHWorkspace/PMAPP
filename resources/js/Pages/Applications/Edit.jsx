@@ -2,13 +2,14 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 
 export default function Edit() {
-    const { application, projects = [] } = usePage().props;
+    const { application, projects = [], teams = [] } = usePage().props;
 
     const { data, setData, put, processing, errors } = useForm({
         title: application.title || '',
         description: application.description || '',
         status: application.status || 'Draft',
-        project_id: application.project_id || '', // ganti dari team_id ke project_id
+        project_id: application.project_id || '',
+        team_id: application.team_id || '', // tambahkan team_id
         start_date: application.start_date || '',
         due_date: application.due_date || '',
         completed_date: application.completed_date || '',
@@ -76,6 +77,20 @@ export default function Edit() {
                                         ))}
                                     </select>
                                     {errors.project_id && <div className="text-red-600 text-sm">{errors.project_id}</div>}
+                                </div>
+                                <div>
+                                    <label className="block font-medium">Team</label>
+                                    <select
+                                        className="mt-1 block w-full border-gray-300 rounded"
+                                        value={data.team_id}
+                                        onChange={e => setData('team_id', e.target.value)}
+                                    >
+                                        <option value="">Pilih Team</option>
+                                        {teams.map((team) => (
+                                            <option key={team.id} value={team.id}>{team.title}</option>
+                                        ))}
+                                    </select>
+                                    {errors.team_id && <div className="text-red-600 text-sm">{errors.team_id}</div>}
                                 </div>
                                 <div>
                                     <label className="block font-medium">Start Date</label>

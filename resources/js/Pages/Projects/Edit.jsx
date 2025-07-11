@@ -2,17 +2,17 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 
 export default function Edit() {
-    const { project, divisions = [], teams = [] } = usePage().props;
+    const { project, divisions = [] } = usePage().props; // Hapus teams dari props
 
     const { data, setData, put, processing, errors } = useForm({
         title: project.title || '',
         description: project.description || '',
         status: project.status || 'Initiating',
         division_id: project.division_id || '',
-        team_id: project.team_id || '',
         start_date: project.start_date || '',
         due_date: project.due_date || '',
         completed_date: project.completed_date || '',
+        nilai: project.nilai || '', // tambahkan ini
     });
 
     const handleSubmit = (e) => {
@@ -79,20 +79,7 @@ export default function Edit() {
                                     </select>
                                     {errors.division_id && <div className="text-red-600 text-sm">{errors.division_id}</div>}
                                 </div>
-                                <div>
-                                    <label className="block font-medium">Team</label>
-                                    <select
-                                        className="mt-1 block w-full border-gray-300 rounded"
-                                        value={data.team_id}
-                                        onChange={e => setData('team_id', e.target.value)}
-                                    >
-                                        <option value="">Pilih Team</option>
-                                        {teams.map((team) => (
-                                            <option key={team.id} value={team.id}>{team.title}</option>
-                                        ))}
-                                    </select>
-                                    {errors.team_id && <div className="text-red-600 text-sm">{errors.team_id}</div>}
-                                </div>
+                                {/* Hapus field Team */}
                                 <div>
                                     <label className="block font-medium">Start Date</label>
                                     <input
@@ -122,6 +109,18 @@ export default function Edit() {
                                         onChange={e => setData('completed_date', e.target.value)}
                                     />
                                     {errors.completed_date && <div className="text-red-600 text-sm">{errors.completed_date}</div>}
+                                </div>
+                                <div>
+                                    <label className="block font-medium">Nilai</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        className="mt-1 block w-full border-gray-300 rounded"
+                                        value={data.nilai}
+                                        onChange={e => setData('nilai', e.target.value)}
+                                        placeholder="Masukkan nilai proyek"
+                                    />
+                                    {errors.nilai && <div className="text-red-600 text-sm">{errors.nilai}</div>}
                                 </div>
                             </div>
                             <div className="flex items-center gap-4">
