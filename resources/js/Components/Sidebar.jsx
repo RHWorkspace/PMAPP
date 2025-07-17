@@ -137,7 +137,7 @@ export default function Sidebar({ user }) {
                         </>
                     )}
                     {/* User section hanya untuk Admin */}
-                    {user?.role && (Array.isArray(user.role) ? user.role.includes('Admin') : user.role === 'Admin') && (
+                    {user?.roles && Array.isArray(user.roles) && user.roles.includes('Admin') && (
                         <>
                             <li
                                 className="mt-4 mb-1 text-xs font-semibold text-gray-400 uppercase flex items-center justify-between cursor-pointer select-none"

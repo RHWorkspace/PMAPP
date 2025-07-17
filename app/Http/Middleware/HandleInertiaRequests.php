@@ -33,9 +33,9 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => fn () => $request->user()
                     ? array_merge(
-                        $request->user()->toArray(),
+                        $request->user()->load(['position', 'division', 'roles'])->toArray(),
                         [
-                            'role' => $request->user()->getRoleNames(), // Spatie
+                            'roles' => $request->user()->getRoleNames(), // Spatie
                         ]
                     )
                     : null,

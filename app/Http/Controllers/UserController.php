@@ -18,7 +18,7 @@ class UserController extends Controller
     // Tampilkan daftar user
     public function index()
     {
-        $users = User::with('position')->get();
+        $users = User::with(['position', 'division', 'roles', 'teams'])->get();
         return Inertia::render('Users/Index', [
             'users' => $users,
         ]);
